@@ -193,9 +193,6 @@ graph LR
     F --> G[Retrain Model<br/>(scheduled)]
     E --> H[Human Analysis]
     H --> G
-    
-    style D fill:#ffeb3b,color:#000
-    style E fill:#ffcdd2,color:#000
 ```
 
 Metrics tracked per panel:
