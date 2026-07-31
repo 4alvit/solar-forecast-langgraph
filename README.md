@@ -22,19 +22,19 @@ LangGraph workflow for solar forecasting with:
 graph TD
     A[User Request] --> B[LangGraph Workflow]
     
-    B --> C[Fetch Weather\nOpenMeteo API]
-    B --> D[Fetch History\ninverter-monitoring]
+    B --> C[Fetch Weather<br/>OpenMeteo API]
+    B --> D[Fetch History<br/>inverter-monitoring]
     
     C --> E[Train Statistical Model]
     D --> E
     
-    E --> F[Generate Forecast\nPhysical + Statistical Ensemble]
-    F --> G[LLM Enhancement\n(Weather pattern analysis)]
-    G --> H[Inverter-Control Hook\nPre-charge decision]
+    E --> F[Generate Forecast<br/>Physical + Statistical Ensemble]
+    F --> G[LLM Enhancement<br/>(Weather pattern analysis)]
+    G --> H[Inverter-Control Hook<br/>Pre-charge decision]
     H --> I[Final Forecast Output]
     
-    I --> J[Accuracy Tracking\nFeedback Loop]
-    J -.-> K[Model Retraining\n(Scheduler)]
+    I --> J[Accuracy Tracking<br/>Feedback Loop]
+    J -.-> K[Model Retraining<br/>(Scheduler)]
     
     subgraph "Data Sources"
         C
@@ -185,12 +185,12 @@ Feedback loop for continuous improvement:
 
 ```mermaid
 graph LR
-    A[Forecast] --> B[Actual Generation\nfrom inverter-monitoring]
-    B --> C[Error Metrics\nMAE, RMSE, MAPE]
+    A[Forecast] --> B[Actual Generation<br/>from inverter-monitoring]
+    B --> C[Error Metrics<br/>MAE, RMSE, MAPE]
     C --> D{Error > Threshold?}
     D -->|Yes| E[Flag for Review]
     D -->|No| F[Update Training Data]
-    F --> G[Retrain Model\n(scheduled)]
+    F --> G[Retrain Model<br/>(scheduled)]
     E --> H[Human Analysis]
     H --> G
     
