@@ -185,12 +185,12 @@ Feedback loop for continuous improvement:
 
 ```mermaid
 graph LR
-    A[Forecast] --> B[Actual Generation<br/>from inverter-monitoring]
-    B --> C[Error Metrics<br/>MAE, RMSE, MAPE]
+    A[Forecast] --> B[Actual Generation]
+    B --> C[Error Metrics]
     C --> D{Error > Threshold?}
     D -->|Yes| E[Flag for Review]
     D -->|No| F[Update Training Data]
-    F --> G[Retrain Model<br/>(scheduled)]
+    F --> G[Retrain Model]
     E --> H[Human Analysis]
     H --> G
 ```
