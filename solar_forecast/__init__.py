@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from solar_forecast.config import PanelConfig, SiteConfig, DEFAULT_SITE
+from solar_forecast.config import DEFAULT_SITE, PanelConfig, SiteConfig
 from solar_forecast.history import (
     GenerationRecord,
     HistoricalData,
