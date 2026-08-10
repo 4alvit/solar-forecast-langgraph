@@ -123,6 +123,8 @@ jobs:
 
       - name: Publish package to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip_existing: true
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
