@@ -56,11 +56,26 @@ graph TD
 
 ## Installation
 
-```bash
-# From PyPI (when published)
-pip install solar-forecast-langgraph
+### From PyPI (recommended)
 
-# From source
+```bash
+# Create and activate a virtual environment
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+
+# Install from PyPI
+pip install solar-forecast-langgraph
+```
+
+After installing, check the CLI is available:
+
+```bash
+solar-forecast --help
+```
+
+### From source (for development)
+
+```bash
 git clone git@github.com:4alvit/solar-forecast-langgraph.git
 cd solar-forecast-langgraph
 python -m venv .venv
