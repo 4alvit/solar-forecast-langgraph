@@ -92,11 +92,15 @@ class PhysicalModel:
         lat_rad = lat * np.pi / 180
 
         # Solar elevation
-        sin_elev = np.sin(lat_rad) * np.sin(decl) + np.cos(lat_rad) * np.cos(decl) * np.cos(hour_angle)
+        sin_elev = np.sin(lat_rad) * np.sin(decl) + np.cos(lat_rad) * np.cos(decl) * np.cos(
+            hour_angle
+        )
         elevation = np.arcsin(np.clip(sin_elev, -1, 1)) * 180 / np.pi
 
         # Solar azimuth
-        cos_az = (np.sin(decl) - np.sin(lat_rad) * sin_elev) / (np.cos(lat_rad) * np.cos(np.arcsin(sin_elev)))
+        cos_az = (np.sin(decl) - np.sin(lat_rad) * sin_elev) / (
+            np.cos(lat_rad) * np.cos(np.arcsin(sin_elev))
+        )
         azimuth = np.arccos(np.clip(cos_az, -1, 1)) * 180 / np.pi
         if hour_angle > 0:
             azimuth = 360 - azimuth
@@ -105,13 +109,13 @@ class PhysicalModel:
 
         # Air mass (Kasten-Young 1989)
         if elevation > 0:
-            air_mass = 1 / (np.sin(elevation * np.pi / 180) + 0.50572 * (elevation + 6.07995) ** -1.6364)
+            air_mass = 1 / (
+                np.sin(elevation * np.pi / 180) + 0.50572 * (elevation + 6.07995) ** -1.6364
+            )
         else:
             air_mass = 0
 
-        return SolarPosition(
-            zenith=zenith, azimuth=azimuth, elevation=elevation, air_mass=air_mass
-        )
+        return SolarPosition(zenith=zenith, azimuth=azimuth, elevation=elevation, air_mass=air_mass)
 
     def calculate_poa_irradiance(
         self, solar_pos: SolarPosition, ghi: float, dni: float, dhi: float
@@ -125,10 +129,9 @@ class PhysicalModel:
         azimuth_diff = (solar_pos.azimuth - self.panel.azimuth) * np.pi / 180
         zenith_rad = solar_pos.zenith * np.pi / 180
 
-        cos_aoi = (
-            np.cos(zenith_rad) * np.cos(tilt_rad)
-            + np.sin(zenith_rad) * np.sin(tilt_rad) * np.cos(azimuth_diff)
-        )
+        cos_aoi = np.cos(zenith_rad) * np.cos(tilt_rad) + np.sin(zenith_rad) * np.sin(
+            tilt_rad
+        ) * np.cos(azimuth_diff)
         cos_aoi = max(0, cos_aoi)
 
         # Beam component
@@ -153,7 +156,10 @@ class PhysicalModel:
         # Simplified: linear with POA, temperature derating
         temp_derating = 1 + self.panel.temperature_coefficient * (25 - 20)  # assume 20°C
         dc_power = self.panel.capacity_kw * 1000 * (poa / 1000) * temp_derating
-        ac_power = min(dc_power * self.panel.inverter_efficiency, self.panel.capacity_kw * 1000 / self.panel.dc_ac_ratio)
+        ac_power = min(
+            dc_power * self.panel.inverter_efficiency,
+            self.panel.capacity_kw * 1000 / self.panel.dc_ac_ratio,
+        )
         return max(0, ac_power)
 
     def apply_cloud_adjustment(

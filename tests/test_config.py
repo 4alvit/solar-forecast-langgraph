@@ -1,6 +1,6 @@
 """Tests for config module."""
 
-from solar_forecast.config import PanelConfig, SiteConfig, DEFAULT_SITE
+from solar_forecast.config import DEFAULT_SITE, PanelConfig, SiteConfig
 
 
 def test_panel_config_valid():
@@ -21,31 +21,106 @@ def test_panel_config_valid():
 
 def test_panel_config_azimuth_bounds():
     # Valid bounds
-    PanelConfig(name="T", panel_id="1", azimuth=0, tilt=30, capacity_kw=1, module_count=1, latitude=0, longitude=0)
-    PanelConfig(name="T", panel_id="1", azimuth=360, tilt=30, capacity_kw=1, module_count=1, latitude=0, longitude=0)
+    PanelConfig(
+        name="T",
+        panel_id="1",
+        azimuth=0,
+        tilt=30,
+        capacity_kw=1,
+        module_count=1,
+        latitude=0,
+        longitude=0,
+    )
+    PanelConfig(
+        name="T",
+        panel_id="1",
+        azimuth=360,
+        tilt=30,
+        capacity_kw=1,
+        module_count=1,
+        latitude=0,
+        longitude=0,
+    )
 
     # Invalid bounds
     import pytest
+
     with pytest.raises(ValueError):
-        PanelConfig(name="T", panel_id="1", azimuth=-1, tilt=30, capacity_kw=1, module_count=1, latitude=0, longitude=0)
+        PanelConfig(
+            name="T",
+            panel_id="1",
+            azimuth=-1,
+            tilt=30,
+            capacity_kw=1,
+            module_count=1,
+            latitude=0,
+            longitude=0,
+        )
     with pytest.raises(ValueError):
-        PanelConfig(name="T", panel_id="1", azimuth=361, tilt=30, capacity_kw=1, module_count=1, latitude=0, longitude=0)
+        PanelConfig(
+            name="T",
+            panel_id="1",
+            azimuth=361,
+            tilt=30,
+            capacity_kw=1,
+            module_count=1,
+            latitude=0,
+            longitude=0,
+        )
 
 
 def test_panel_config_tilt_bounds():
     import pytest
+
     with pytest.raises(ValueError):
-        PanelConfig(name="T", panel_id="1", azimuth=180, tilt=-1, capacity_kw=1, module_count=1, latitude=0, longitude=0)
+        PanelConfig(
+            name="T",
+            panel_id="1",
+            azimuth=180,
+            tilt=-1,
+            capacity_kw=1,
+            module_count=1,
+            latitude=0,
+            longitude=0,
+        )
     with pytest.raises(ValueError):
-        PanelConfig(name="T", panel_id="1", azimuth=180, tilt=91, capacity_kw=1, module_count=1, latitude=0, longitude=0)
+        PanelConfig(
+            name="T",
+            panel_id="1",
+            azimuth=180,
+            tilt=91,
+            capacity_kw=1,
+            module_count=1,
+            latitude=0,
+            longitude=0,
+        )
 
 
 def test_panel_config_capacity_positive():
     import pytest
+
     with pytest.raises(ValueError):
-        PanelConfig(name="T", panel_id="1", azimuth=180, tilt=30, capacity_kw=0, module_count=1, latitude=0, longitude=0)
+        PanelConfig(
+            name="T",
+            panel_id="1",
+            azimuth=180,
+            tilt=30,
+            capacity_kw=0,
+            module_count=1,
+            latitude=0,
+            longitude=0,
+        )
     with pytest.raises(ValueError):
-        PanelConfig(name="T", panel_id="1", azimuth=180, tilt=30, capacity_kw=-1, module_count=1, latitude=0, longitude=0)
+        PanelConfig(
+            name="T",
+            panel_id="1",
+            azimuth=180,
+            tilt=30,
+            capacity_kw=-1,
+            module_count=1,
+            latitude=0,
+            longitude=0,
+        )
 
 
 def test_effective_capacity():
@@ -70,8 +145,26 @@ def test_site_config():
         latitude=52.37,
         longitude=4.90,
         panels=[
-            PanelConfig(name="P1", panel_id="p1", azimuth=180, tilt=35, capacity_kw=5.0, module_count=14, latitude=52.37, longitude=4.90),
-            PanelConfig(name="P2", panel_id="p2", azimuth=270, tilt=30, capacity_kw=3.0, module_count=8, latitude=52.37, longitude=4.90),
+            PanelConfig(
+                name="P1",
+                panel_id="p1",
+                azimuth=180,
+                tilt=35,
+                capacity_kw=5.0,
+                module_count=14,
+                latitude=52.37,
+                longitude=4.90,
+            ),
+            PanelConfig(
+                name="P2",
+                panel_id="p2",
+                azimuth=270,
+                tilt=30,
+                capacity_kw=3.0,
+                module_count=8,
+                latitude=52.37,
+                longitude=4.90,
+            ),
         ],
     )
     assert site.site_name == "test-site"
@@ -84,7 +177,18 @@ def test_site_config_panel_by_id():
         site_name="test",
         latitude=0,
         longitude=0,
-        panels=[PanelConfig(name="P1", panel_id="p1", azimuth=180, tilt=30, capacity_kw=1, module_count=1, latitude=0, longitude=0)],
+        panels=[
+            PanelConfig(
+                name="P1",
+                panel_id="p1",
+                azimuth=180,
+                tilt=30,
+                capacity_kw=1,
+                module_count=1,
+                latitude=0,
+                longitude=0,
+            )
+        ],
     )
     panel = site.panel_by_id("p1")
     assert panel is not None

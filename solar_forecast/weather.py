@@ -88,7 +88,8 @@ class OpenMeteoClient:
             "latitude": latitude,
             "longitude": longitude,
             "hourly": ",".join(
-                [
+                f"{h}"
+                for h in [
                     "temperature_2m",
                     "relative_humidity_2m",
                     "cloud_cover",
@@ -123,7 +124,7 @@ class OpenMeteoClient:
 
         hourly = []
         for i, t_str in enumerate(times):
-            dt = datetime.fromisoformat(t_str.replace("Z", "+00:00"))
+            dt = datetime.fromisoformat(t_str)
             hourly.append(
                 WeatherHourly(
                     time=dt,
@@ -154,7 +155,9 @@ class OpenMeteoClient:
         self, latitude: float, longitude: float, timezone: str = "UTC"
     ) -> WeatherHourly:
         """Fetch current weather conditions."""
-        forecast = await self.fetch_forecast(latitude, longitude, horizon_hours=1, timezone=timezone)
+        forecast = await self.fetch_forecast(
+            latitude, longitude, horizon_hours=1, timezone=timezone
+        )
         now = datetime.now(UTC)
         # Find closest hour
         closest = min(forecast.hourly, key=lambda h: abs((h.time - now).total_seconds()))

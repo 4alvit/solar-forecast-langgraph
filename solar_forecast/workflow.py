@@ -62,7 +62,11 @@ class InverterControlHook(BaseModel):
 async def fetch_weather_node(state: WorkflowState) -> WorkflowState:
     """Fetch weather forecast from OpenMeteo."""
     state.current_step = "fetch_weather"
-    panel = state.site_config.panel_by_id(state.panel_id) if state.panel_id else state.site_config.panels[0]
+    panel = (
+        state.site_config.panel_by_id(state.panel_id)
+        if state.panel_id
+        else state.site_config.panels[0]
+    )
 
     client = OpenMeteoClient()
     try:
@@ -82,7 +86,11 @@ async def fetch_weather_node(state: WorkflowState) -> WorkflowState:
 async def fetch_history_node(state: WorkflowState) -> WorkflowState:
     """Fetch historical generation data."""
     state.current_step = "fetch_history"
-    panel = state.site_config.panel_by_id(state.panel_id) if state.panel_id else state.site_config.panels[0]
+    panel = (
+        state.site_config.panel_by_id(state.panel_id)
+        if state.panel_id
+        else state.site_config.panels[0]
+    )
 
     loader = InverterMonitoringLoader()
     end = datetime.now(UTC)
@@ -117,7 +125,11 @@ async def train_model_node(state: WorkflowState) -> WorkflowState:
         state.errors.append("Weather forecast required for training")
         return state
 
-    panel = state.site_config.panel_by_id(state.panel_id) if state.panel_id else state.site_config.panels[0]
+    panel = (
+        state.site_config.panel_by_id(state.panel_id)
+        if state.panel_id
+        else state.site_config.panels[0]
+    )
     model = ForecastModel(state.site_config, state.panel_id)
 
     try:
@@ -137,7 +149,11 @@ async def generate_forecast_node(state: WorkflowState) -> WorkflowState:
         state.errors.append("Weather forecast required for generation")
         return state
 
-    panel = state.site_config.panel_by_id(state.panel_id) if state.panel_id else state.site_config.panels[0]
+    panel = (
+        state.site_config.panel_by_id(state.panel_id)
+        if state.panel_id
+        else state.site_config.panels[0]
+    )
     model = ForecastModel(state.site_config, state.panel_id)
 
     # Use trained statistical model if available
@@ -164,7 +180,11 @@ async def enhance_forecast_node(state: WorkflowState) -> WorkflowState:
     # For now, just pass through - LLM enhancement to be implemented
     from solar_forecast.model import enhance_with_llm
 
-    panel = state.site_config.panel_by_id(state.panel_id) if state.panel_id else state.site_config.panels[0]
+    panel = (
+        state.site_config.panel_by_id(state.panel_id)
+        if state.panel_id
+        else state.site_config.panels[0]
+    )
 
     try:
         enhanced = await enhance_with_llm(
@@ -198,7 +218,8 @@ async def inverter_control_hook_node(state: WorkflowState) -> WorkflowState:
 
     # Check for cloudy period in near future
     near_future = [
-        p for p in state.final_forecast.points
+        p
+        for p in state.final_forecast.points
         if p.timestamp <= datetime.now(UTC) + timedelta(hours=hook.cloudy_horizon_hours)
     ]
 

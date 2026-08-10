@@ -66,13 +66,7 @@ class PanelConfig(BaseModel):
         """Calculate effective AC capacity after losses."""
         dc_capacity = self.capacity_kw
         ac_capacity = dc_capacity * self.inverter_efficiency
-        total_loss = (
-            1 - self.shading_loss
-        ) * (
-            1 - self.soiling_loss
-        ) * (
-            1 - self.wiring_loss
-        )
+        total_loss = (1 - self.shading_loss) * (1 - self.soiling_loss) * (1 - self.wiring_loss)
         return ac_capacity * total_loss
 
 

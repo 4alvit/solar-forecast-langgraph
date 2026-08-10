@@ -8,10 +8,17 @@ import json
 import sys
 
 from solar_forecast import (
-    SiteConfig,
     DEFAULT_SITE,
+    SiteConfig,
     run_forecast,
 )
+
+
+async def aio_write_json(path: str, data: dict):
+    import aiofiles
+
+    async with aiofiles.open(path, "w") as f:
+        await f.write(json.dumps(data, indent=2, default=str))
 
 
 def load_site_config(config_path: str | None) -> SiteConfig:
@@ -95,10 +102,10 @@ async def main_async(
             p["timestamp"] = p["timestamp"]
 
         if output_format == "json":
-            with open(output_path, "w") as f:
-                json.dump(out_data, f, indent=2, default=str)
+            await aio_write_json(output_path, out_data)
         elif output_format == "csv":
             import pandas as pd
+
             df = pd.DataFrame(out_data["points"])
             df.to_csv(output_path, index=False)
         print(f"\nOutput saved to {output_path}")

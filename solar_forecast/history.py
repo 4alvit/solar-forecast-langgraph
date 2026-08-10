@@ -54,16 +54,20 @@ class HistoricalData(BaseModel):
         if df.empty:
             return self
 
-        resampled = df.resample(freq).agg(
-            {
-                "energy_wh": "sum",
-                "power_w": "mean",
-                "voltage_v": "mean",
-                "current_a": "mean",
-                "site_id": "first",
-                "panel_id": "first",
-            }
-        ).dropna(subset=["energy_wh"])
+        resampled = (
+            df.resample(freq)
+            .agg(
+                {
+                    "energy_wh": "sum",
+                    "power_w": "mean",
+                    "voltage_v": "mean",
+                    "current_a": "mean",
+                    "site_id": "first",
+                    "panel_id": "first",
+                }
+            )
+            .dropna(subset=["energy_wh"])
+        )
 
         records = []
         for idx, row in resampled.iterrows():
@@ -139,14 +143,19 @@ class InverterMonitoringLoader:
         return self._parse_response(data, site_id, panel_id, start, end)
 
     def _parse_response(
-        self, data: dict[str, Any], site_id: str, panel_id: str | None, start: datetime, end: datetime
+        self,
+        data: dict[str, Any],
+        site_id: str,
+        panel_id: str | None,
+        start: datetime,
+        end: datetime,
     ) -> HistoricalData:
         """Parse API response into HistoricalData."""
         records = []
         for item in data.get("records", []):
             records.append(
                 GenerationRecord(
-                    timestamp=datetime.fromisoformat(item["timestamp"].replace("Z", "+00:00")),
+                    timestamp=datetime.fromisoformat(item["timestamp"]),
                     site_id=item["site_id"],
                     panel_id=item.get("panel_id"),
                     energy_wh=item["energy_wh"],
