@@ -159,6 +159,7 @@ def test_statistical_model_fit():
     weather = create_test_weather_forecast(100)
 
     # Create synthetic historical data aligned with weather
+    np.random.seed(42)  # Fixed seed for reproducibility
     hist_rows = []
     for h in weather.hourly:
         # Generation roughly follows GHI with noise
@@ -178,6 +179,7 @@ def test_statistical_model_predict():
     stat = StatisticalModel()
     weather = create_test_weather_forecast(100)
 
+    np.random.seed(42)  # Fixed seed for reproducibility
     hist_rows = []
     for h in weather.hourly:
         gen = max(0, h.shortwave_radiation * 4.5 + np.random.normal(0, 100))

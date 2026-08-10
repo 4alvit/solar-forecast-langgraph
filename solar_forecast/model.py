@@ -260,7 +260,8 @@ class StatisticalModel:
 
         X = self.prepare_features(weather)
         X_scaled = self.scaler.transform(X[self.feature_names].values)
-        return self.model.predict(X_scaled)
+        predictions = self.model.predict(X_scaled)
+        return np.maximum(predictions, 0)  # Clip negative predictions
 
 
 class ForecastModel:
