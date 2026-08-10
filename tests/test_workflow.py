@@ -7,14 +7,14 @@ import pytest
 
 from solar_forecast.config import PanelConfig, SiteConfig
 from solar_forecast.workflow import (
-    WorkflowState,
     InverterControlHook,
+    WorkflowState,
     build_forecast_workflow,
-    fetch_weather_node,
     fetch_history_node,
-    train_model_node,
-    generate_forecast_node,
+    fetch_weather_node,
     finalize_forecast_node,
+    generate_forecast_node,
+    train_model_node,
 )
 
 
@@ -107,7 +107,7 @@ async def test_finalize_forecast_node():
     state = WorkflowState(site_config=site, panel_id="test-1")
 
     # Add a mock forecast
-    from solar_forecast.model import GenerationForecast, ForecastMethod, ForecastPoint
+    from solar_forecast.model import ForecastMethod, ForecastPoint, GenerationForecast
 
     mock_forecast = GenerationForecast(
         site_id="test-site",

@@ -1,19 +1,20 @@
 """Tests for model module."""
 
+from datetime import UTC, datetime
+
 import numpy as np
 import pandas as pd
 
 from solar_forecast.config import PanelConfig, SiteConfig
 from solar_forecast.model import (
     ForecastMethod,
+    ForecastModel,
     ForecastPoint,
     GenerationForecast,
     PhysicalModel,
     StatisticalModel,
-    ForecastModel,
 )
 from solar_forecast.weather import WeatherForecast, WeatherHourly
-from datetime import UTC, datetime
 
 
 def create_test_site():
