@@ -34,7 +34,7 @@ graph TD
     H --> I[Final Forecast Output]
     
     I --> J[Accuracy Tracking<br/>Feedback Loop]
-    J -.-> K[Model Retraining<br/>(Scheduler)]
+    J -.-> K[Model Retraining - Scheduler]
     
     subgraph "Data Sources"
         C
