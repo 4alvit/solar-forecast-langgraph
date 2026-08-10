@@ -44,3 +44,4 @@ config.local.py
 data/
 *.parquet
 *.csv
+C*.md
