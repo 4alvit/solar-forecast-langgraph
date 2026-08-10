@@ -110,9 +110,9 @@ from solar_forecast.config import PanelConfig, SiteConfig
 panel = PanelConfig(
     name="South Roof",
     panel_id="south-roof",
-    azimuth=180,        # 0=N, 90=E, 180=S, 270=W
-    tilt=35,            # Degrees from horizontal
-    capacity_kw=5.0,    # DC capacity
+    azimuth=180,  # 0=N, 90=E, 180=S, 270=W
+    tilt=35,  # Degrees from horizontal
+    capacity_kw=5.0,  # DC capacity
     module_count=14,
     latitude=52.37,
     longitude=4.90,
