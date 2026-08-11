@@ -199,7 +199,7 @@ INVERTER_CONTROL_API_KEY = "your-key"
 Feedback loop for continuous improvement:
 
 ```mermaid
-graph LR
+graph TD
     A[Forecast] --> B[Actual Generation]
     B --> C[Error Metrics]
     C --> D{Error > Threshold?}
