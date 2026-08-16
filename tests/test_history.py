@@ -163,7 +163,11 @@ def test_inverter_loader_parse_response():
     }
 
     result = loader._parse_response(
-        data, "test-site", "panel-1", datetime(2024, 6, 15, 12, tzinfo=UTC), datetime(2024, 6, 15, 14, tzinfo=UTC)
+        data,
+        "test-site",
+        "panel-1",
+        datetime(2024, 6, 15, 12, tzinfo=UTC),
+        datetime(2024, 6, 15, 14, tzinfo=UTC),
     )
 
     assert isinstance(result, HistoricalData)
@@ -204,7 +208,11 @@ def test_inverter_loader_parse_response_without_panel_id():
     }
 
     result = loader._parse_response(
-        data, "test-site", None, datetime(2024, 6, 15, 12, tzinfo=UTC), datetime(2024, 6, 15, 14, tzinfo=UTC)
+        data,
+        "test-site",
+        None,
+        datetime(2024, 6, 15, 12, tzinfo=UTC),
+        datetime(2024, 6, 15, 14, tzinfo=UTC),
     )
 
     assert result.records[0].panel_id is None
@@ -229,9 +237,7 @@ async def test_inverter_loader_fetch_generation():
 
     # Patch the _parse_response method to avoid actual HTTP call
     async def mock_fetch_generation(self, site_id, start, end, panel_id=None):
-        return self._parse_response(
-            mock_response_data, site_id, panel_id, start, end
-        )
+        return self._parse_response(mock_response_data, site_id, panel_id, start, end)
 
     with patch.object(InverterMonitoringLoader, "fetch_generation", new=mock_fetch_generation):
         result = await loader.fetch_generation(
@@ -253,9 +259,7 @@ async def test_inverter_loader_fetch_generation_with_api_key():
     mock_response_data = {"records": [], "interval_minutes": 60}
 
     async def mock_fetch_generation(self, site_id, start, end, panel_id=None):
-        return self._parse_response(
-            mock_response_data, site_id, panel_id, start, end
-        )
+        return self._parse_response(mock_response_data, site_id, panel_id, start, end)
 
     with patch.object(InverterMonitoringLoader, "fetch_generation", new=mock_fetch_generation):
         await loader.fetch_generation(

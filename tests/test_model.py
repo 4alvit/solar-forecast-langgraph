@@ -429,9 +429,7 @@ def test_enhance_with_llm():
         index=[datetime(2024, 6, 15, h, 0, tzinfo=UTC) for h in range(6, 18)],
     )
 
-    enhanced = asyncio.run(
-        enhance_with_llm(base_forecast, weather, site, panel, hist_df)
-    )
+    enhanced = asyncio.run(enhance_with_llm(base_forecast, weather, site, panel, hist_df))
 
     assert enhanced.method == ForecastMethod.LLM_ENHANCED
     assert len(enhanced.points) == 12

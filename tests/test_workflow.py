@@ -293,7 +293,9 @@ async def test_inverter_control_hook_node_triggers_precharge():
 
     with patch("solar_forecast.workflow.InverterControlHook") as mock_hook_class:
         # Default hook has pre_charge_threshold_wh=5000, cloudy_horizon_hours=6
-        mock_hook = InverterControlHook(enabled=True, pre_charge_threshold_wh=5000, cloudy_horizon_hours=6)
+        mock_hook = InverterControlHook(
+            enabled=True, pre_charge_threshold_wh=5000, cloudy_horizon_hours=6
+        )
         mock_hook_class.return_value = mock_hook
 
         result = await inverter_control_hook_node(state)
@@ -314,11 +316,14 @@ async def test_train_model_node_with_data():
     # Create mock historical data
     hist_df = pd.DataFrame(
         {"energy_wh": [1000.0, 1500.0, 1200.0]},
-        index=pd.to_datetime([
-            "2024-06-15T12:00:00+00:00",
-            "2024-06-15T13:00:00+00:00",
-            "2024-06-15T14:00:00+00:00",
-        ], utc=True),
+        index=pd.to_datetime(
+            [
+                "2024-06-15T12:00:00+00:00",
+                "2024-06-15T13:00:00+00:00",
+                "2024-06-15T14:00:00+00:00",
+            ],
+            utc=True,
+        ),
     )
 
     state = WorkflowState(
