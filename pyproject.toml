@@ -68,7 +68,7 @@ python_functions = "test_*"
 
 [tool.coverage.run]
 source = ["solar_forecast"]
-omit = ["tests/*", "*/__pycache__/*"]
+omit = ["tests/*", "*/__pycache__/*", "solar_forecast/main.py"]
 
 [tool.coverage.report]
 exclude_lines = [
