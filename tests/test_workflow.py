@@ -1,19 +1,22 @@
 """Tests for workflow module."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from solar_forecast.config import PanelConfig, SiteConfig
+from solar_forecast.weather import WeatherForecast, WeatherHourly
 from solar_forecast.workflow import (
     InverterControlHook,
     WorkflowState,
     build_forecast_workflow,
+    enhance_forecast_node,
     fetch_history_node,
     fetch_weather_node,
     finalize_forecast_node,
     generate_forecast_node,
+    inverter_control_hook_node,
     train_model_node,
 )
 
@@ -159,3 +162,206 @@ def test_inverter_control_hook_defaults():
     assert hook.endpoint == "http://localhost:8081"
     assert hook.pre_charge_threshold_wh == 5000
     assert hook.cloudy_horizon_hours == 6
+
+
+@pytest.mark.asyncio
+async def test_enhance_forecast_node_no_base():
+    """Test enhance forecast node fails without base forecast."""
+    site = create_test_site()
+    state = WorkflowState(site_config=site, panel_id="test-1", base_forecast=None)
+
+    result = await enhance_forecast_node(state)
+
+    assert len(result.errors) > 0
+    # Error is added but completed_steps only gets appended in try/except
+    assert "current_step" in result.model_dump()
+
+
+@pytest.mark.asyncio
+async def test_enhance_forecast_node_with_base():
+    """Test enhance forecast node with base forecast."""
+    from solar_forecast.model import ForecastMethod, ForecastPoint, GenerationForecast
+
+    site = create_test_site()
+
+    mock_forecast = GenerationForecast(
+        site_id="test-site",
+        panel_id="test-1",
+        forecast_horizon_hours=1,
+        points=[
+            ForecastPoint(
+                timestamp=datetime.now(UTC),
+                energy_wh=1000,
+                power_w=1000,
+                confidence_lower=800,
+                confidence_upper=1200,
+                method=ForecastMethod.ENSEMBLE,
+            )
+        ],
+        method=ForecastMethod.ENSEMBLE,
+    )
+
+    state = WorkflowState(
+        site_config=site,
+        panel_id="test-1",
+        base_forecast=mock_forecast,
+        weather_forecast=create_mock_weather_forecast(),
+        historical_df=None,
+    )
+
+    # Mock the enhance_with_llm function (imported from solar_forecast.model)
+    with patch("solar_forecast.model.enhance_with_llm", new_callable=AsyncMock) as mock_enhance:
+        mock_enhance.return_value = mock_forecast
+
+        result = await enhance_forecast_node(state)
+
+    assert result.enhanced_forecast is not None
+    assert "enhance_forecast" in result.completed_steps
+
+
+@pytest.mark.asyncio
+async def test_inverter_control_hook_node_disabled():
+    """Test inverter control hook node when disabled."""
+    site = create_test_site()
+
+    from solar_forecast.model import ForecastMethod, ForecastPoint, GenerationForecast
+
+    mock_forecast = GenerationForecast(
+        site_id="test-site",
+        panel_id="test-1",
+        forecast_horizon_hours=1,
+        points=[
+            ForecastPoint(
+                timestamp=datetime.now(UTC),
+                energy_wh=1000,
+                power_w=1000,
+                confidence_lower=800,
+                confidence_upper=1200,
+                method=ForecastMethod.ENSEMBLE,
+            )
+        ],
+        method=ForecastMethod.ENSEMBLE,
+    )
+
+    state = WorkflowState(
+        site_config=site,
+        panel_id="test-1",
+        final_forecast=mock_forecast,
+    )
+
+    with patch("solar_forecast.workflow.InverterControlHook") as mock_hook_class:
+        mock_hook = InverterControlHook(enabled=False)
+        mock_hook_class.return_value = mock_hook
+
+        result = await inverter_control_hook_node(state)
+
+    assert "inverter_control_hook" in result.completed_steps
+    assert len(result.warnings) == 0  # No warning when disabled
+
+
+@pytest.mark.asyncio
+async def test_inverter_control_hook_node_triggers_precharge():
+    """Test inverter control hook triggers pre-charge warning."""
+    site = create_test_site()
+
+    from solar_forecast.model import ForecastMethod, ForecastPoint, GenerationForecast
+
+    # Low energy forecast to trigger pre-charge
+    near_future_time = datetime.now(UTC) + timedelta(hours=3)
+    mock_forecast = GenerationForecast(
+        site_id="test-site",
+        panel_id="test-1",
+        forecast_horizon_hours=6,
+        points=[
+            ForecastPoint(
+                timestamp=near_future_time,
+                energy_wh=1000,  # Low energy
+                power_w=1000,
+                confidence_lower=800,
+                confidence_upper=1200,
+                method=ForecastMethod.ENSEMBLE,
+            )
+        ],
+        method=ForecastMethod.ENSEMBLE,
+    )
+
+    state = WorkflowState(
+        site_config=site,
+        panel_id="test-1",
+        final_forecast=mock_forecast,
+    )
+
+    with patch("solar_forecast.workflow.InverterControlHook") as mock_hook_class:
+        # Default hook has pre_charge_threshold_wh=5000, cloudy_horizon_hours=6
+        mock_hook = InverterControlHook(enabled=True, pre_charge_threshold_wh=5000, cloudy_horizon_hours=6)
+        mock_hook_class.return_value = mock_hook
+
+        result = await inverter_control_hook_node(state)
+
+    assert "inverter_control_hook" in result.completed_steps
+    # Should add warning about low generation
+    assert len(result.warnings) > 0
+    assert "pre-charge" in result.warnings[0].lower()
+
+
+@pytest.mark.asyncio
+async def test_train_model_node_with_data():
+    """Test train model node with historical data."""
+    import pandas as pd
+
+    site = create_test_site()
+
+    # Create mock historical data
+    hist_df = pd.DataFrame(
+        {"energy_wh": [1000.0, 1500.0, 1200.0]},
+        index=pd.to_datetime([
+            "2024-06-15T12:00:00+00:00",
+            "2024-06-15T13:00:00+00:00",
+            "2024-06-15T14:00:00+00:00",
+        ], utc=True),
+    )
+
+    state = WorkflowState(
+        site_config=site,
+        panel_id="test-1",
+        historical_df=hist_df,
+        weather_forecast=create_mock_weather_forecast(),
+    )
+
+    result = await train_model_node(state)
+
+    assert "train_model" in result.completed_steps
+
+
+def create_mock_weather_forecast():
+    """Create a mock weather forecast for testing."""
+
+    hourly = []
+    base_time = datetime(2024, 6, 15, 12, 0, tzinfo=UTC)
+    for i in range(3):
+        dt = base_time + timedelta(hours=i)
+        hourly.append(
+            WeatherHourly(
+                time=dt,
+                temperature_2m=20.0,
+                relative_humidity_2m=60,
+                cloud_cover=20,
+                cloud_cover_low=5,
+                cloud_cover_mid=10,
+                cloud_cover_high=5,
+                shortwave_radiation=800.0,
+                direct_radiation=600.0,
+                diffuse_radiation=200.0,
+                wind_speed_10m=3.0,
+                wind_direction_10m=180,
+                pressure_msl=1013.25,
+            )
+        )
+
+    return WeatherForecast(
+        latitude=52.37,
+        longitude=4.90,
+        elevation=0,
+        timezone="UTC",
+        hourly=hourly,
+    )

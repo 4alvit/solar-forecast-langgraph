@@ -1,9 +1,11 @@
 """Tests for model module."""
 
+import asyncio
 from datetime import UTC, datetime
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from solar_forecast.config import PanelConfig, SiteConfig
 from solar_forecast.model import (
@@ -13,6 +15,7 @@ from solar_forecast.model import (
     GenerationForecast,
     PhysicalModel,
     StatisticalModel,
+    enhance_with_llm,
 )
 from solar_forecast.weather import WeatherForecast, WeatherHourly
 
@@ -258,3 +261,211 @@ def test_forecast_model_to_dataframe():
     assert "timestamp" in df.columns
     assert "energy_wh" in df.columns
     assert "power_w" in df.columns
+
+
+def test_physical_model_cloud_adjustment_low():
+    """Test cloud adjustment with low cloud type."""
+    site = create_test_site()
+    panel = site.panels[0]
+    physical = PhysicalModel(panel)
+
+    clear_power = 3000.0
+
+    # Low clouds block more
+    adjusted = physical.apply_cloud_adjustment(clear_power, 50, cloud_type="low")
+    assert adjusted < clear_power
+    assert adjusted > 0
+
+
+def test_physical_model_cloud_adjustment_high():
+    """Test cloud adjustment with high cloud type."""
+    site = create_test_site()
+    panel = site.panels[0]
+    physical = PhysicalModel(panel)
+
+    clear_power = 3000.0
+
+    # High clouds block less
+    adjusted = physical.apply_cloud_adjustment(clear_power, 50, cloud_type="high")
+    assert adjusted < clear_power
+    assert adjusted > 0
+
+    # High clouds should allow more power than low clouds at same cover
+    adjusted_low = physical.apply_cloud_adjustment(clear_power, 50, cloud_type="low")
+    assert adjusted > adjusted_low
+
+
+def test_physical_model_cloud_adjustment_mid():
+    """Test cloud adjustment with mid cloud type (uses total cloud logic)."""
+    site = create_test_site()
+    panel = site.panels[0]
+    physical = PhysicalModel(panel)
+
+    clear_power = 3000.0
+
+    # Mid clouds use total logic (default)
+    adjusted = physical.apply_cloud_adjustment(clear_power, 50, cloud_type="mid")
+    assert adjusted < clear_power
+    assert adjusted > 0
+
+
+def test_statistical_model_fit_insufficient_data():
+    """Test fit raises error with insufficient data."""
+    site = create_test_site()
+    stat = StatisticalModel()
+    weather = create_test_weather_forecast(10)  # Only 10 hours
+
+    hist_rows = []
+    for h in weather.hourly:
+        gen = max(0, h.shortwave_radiation * 4.5)
+        hist_rows.append({"timestamp": h.time, "energy_wh": gen})
+
+    hist_df = pd.DataFrame(hist_rows)
+    hist_df.set_index("timestamp", inplace=True)
+
+    with pytest.raises(ValueError, match="Insufficient training data"):
+        stat.fit(weather, hist_df)
+
+
+def test_statistical_model_predict_not_fitted():
+    """Test predict raises error when model not fitted."""
+    stat = StatisticalModel()
+    weather = create_test_weather_forecast(24)
+
+    with pytest.raises(RuntimeError, match="Model not fitted"):
+        stat.predict(weather)
+
+
+def test_forecast_model_with_panel_id():
+    """Test ForecastModel with specific panel_id."""
+    panel1 = PanelConfig(
+        name="Panel 1",
+        panel_id="p1",
+        azimuth=180,
+        tilt=35,
+        capacity_kw=5.0,
+        module_count=14,
+        latitude=52.37,
+        longitude=4.90,
+    )
+    panel2 = PanelConfig(
+        name="Panel 2",
+        panel_id="p2",
+        azimuth=270,
+        tilt=30,
+        capacity_kw=3.0,
+        module_count=8,
+        latitude=52.37,
+        longitude=4.90,
+    )
+    site = SiteConfig(
+        site_name="test-site",
+        latitude=52.37,
+        longitude=4.90,
+        panels=[panel1, panel2],
+    )
+
+    # Model with panel_id should use that panel
+    model = ForecastModel(site, panel_id="p2")
+    assert model.panel.panel_id == "p2"
+    assert model.panel.capacity_kw == 3.0
+
+
+def test_forecast_model_statistical_method():
+    """Test forecast with STATISTICAL method."""
+    site = create_test_site()
+    model = ForecastModel(site)
+
+    # Need to train first
+    train_weather = create_test_weather_forecast(100)
+    np.random.seed(42)
+    hist_rows = []
+    for h in train_weather.hourly:
+        gen = max(0, h.shortwave_radiation * 4.5 + np.random.normal(0, 100))
+        hist_rows.append({"timestamp": h.time, "energy_wh": gen})
+
+    hist_df = pd.DataFrame(hist_rows)
+    hist_df.set_index("timestamp", inplace=True)
+    model.train(train_weather, hist_df)
+
+    # Now forecast with STATISTICAL method
+    weather = create_test_weather_forecast(24)
+    forecast = model.forecast(weather, method=ForecastMethod.STATISTICAL)
+
+    assert forecast.method == ForecastMethod.STATISTICAL
+    assert len(forecast.points) == 24
+    assert forecast.total_energy_wh() > 0
+
+
+def test_enhance_with_llm():
+    """Test LLM enhancement function."""
+
+    site = create_test_site()
+    panel = site.panels[0]
+
+    points = [
+        ForecastPoint(
+            timestamp=datetime(2024, 6, 15, h, 0, tzinfo=UTC),
+            energy_wh=1000.0,
+            power_w=1000.0,
+            confidence_lower=800.0,
+            confidence_upper=1200.0,
+            method=ForecastMethod.ENSEMBLE,
+        )
+        for h in range(6, 18)
+    ]
+
+    base_forecast = GenerationForecast(
+        site_id="test-site",
+        panel_id="test-1",
+        forecast_horizon_hours=12,
+        points=points,
+        method=ForecastMethod.ENSEMBLE,
+    )
+
+    weather = create_test_weather_forecast(12)
+    hist_df = pd.DataFrame(
+        {"energy_wh": [1000.0] * 12},
+        index=[datetime(2024, 6, 15, h, 0, tzinfo=UTC) for h in range(6, 18)],
+    )
+
+    enhanced = asyncio.run(
+        enhance_with_llm(base_forecast, weather, site, panel, hist_df)
+    )
+
+    assert enhanced.method == ForecastMethod.LLM_ENHANCED
+    assert len(enhanced.points) == 12
+    assert enhanced.model_version == "0.1.0+llm"
+
+
+def test_enhance_with_llm_no_historical():
+    """Test LLM enhancement without historical data."""
+
+    site = create_test_site()
+    panel = site.panels[0]
+
+    points = [
+        ForecastPoint(
+            timestamp=datetime(2024, 6, 15, h, 0, tzinfo=UTC),
+            energy_wh=1000.0,
+            power_w=1000.0,
+            confidence_lower=800.0,
+            confidence_upper=1200.0,
+            method=ForecastMethod.ENSEMBLE,
+        )
+        for h in range(6, 18)
+    ]
+
+    base_forecast = GenerationForecast(
+        site_id="test-site",
+        panel_id="test-1",
+        forecast_horizon_hours=12,
+        points=points,
+        method=ForecastMethod.ENSEMBLE,
+    )
+
+    weather = create_test_weather_forecast(12)
+
+    enhanced = asyncio.run(enhance_with_llm(base_forecast, weather, site, panel, None))
+
+    assert enhanced.method == ForecastMethod.LLM_ENHANCED
