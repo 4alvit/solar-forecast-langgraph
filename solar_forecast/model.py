@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
@@ -357,28 +358,80 @@ async def enhance_with_llm(
     panel_config: PanelConfig,
     recent_actuals: pd.DataFrame | None = None,
 ) -> GenerationForecast:
-    """Enhance forecast with LLM reasoning (placeholder for future implementation).
+    """Enhance forecast with LLM reasoning using OpenAI API.
 
-    This will use an LLM to:
-    1. Analyze weather patterns (fronts, storms, marine layer, etc.)
-    2. Incorporate local knowledge (seasonal patterns, microclimates)
-    3. Adjust confidence intervals based on weather certainty
-    4. Flag anomalous predictions for review
+    Analyzes weather patterns, forecast data, and historical actuals to make
+    intelligent adjustments to the forecast.
     """
-    # TODO: Implement LLM integration with langchain
-    # For now, return base forecast with method updated
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        # No API key configured - return base forecast with original method
+        # This avoids the fake "LLM-enhanced" label
+        return base_forecast
+
+    try:
+        from langchain_core.messages import HumanMessage, SystemMessage
+        from langchain_openai import ChatOpenAI
+    except ImportError:
+        return base_forecast
+
+    # Prepare context for LLM
+    context = _build_llm_context(base_forecast, weather, site_config, panel_config, recent_actuals)
+
+    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0, api_key=api_key)
+
+    system_prompt = """You are a solar forecasting expert. Analyze the provided weather forecast,
+    solar panel configuration, and historical generation data to refine the base forecast.
+
+    Provide adjustments as JSON with these optional fields:
+    - "power_adjustment_pct": percentage adjustment to power predictions (-30 to +30)
+    - "confidence_multiplier": multiplier for confidence intervals (0.5 to 2.0)
+    - "flags": list of warning flags for anomalous conditions
+    - "reasoning": brief explanation of your adjustments
+
+    Be conservative. Only make adjustments when you have clear reasoning from the data."""
+
+    response = await llm.ainvoke(
+        [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=context),
+        ]
+    )
+
+    import json
+
+    try:
+        adjustment = json.loads(response.content)
+    except json.JSONDecodeError:
+        return base_forecast
+
+    # Apply adjustments
+    power_adj = adjustment.get("power_adjustment_pct", 0) / 100
+    conf_mult = adjustment.get("confidence_multiplier", 1.0)
+    flags = adjustment.get("flags", [])
+
     enhanced_points = []
     for p in base_forecast.points:
+        adj_power = max(0, p.power_w * (1 + power_adj))
+        adj_energy = max(0, p.energy_wh * (1 + power_adj))
+        uncertainty = p.confidence_upper - p.energy_wh
+        new_uncertainty = uncertainty * conf_mult
+
         enhanced_points.append(
             ForecastPoint(
                 timestamp=p.timestamp,
-                energy_wh=p.energy_wh,
-                power_w=p.power_w,
-                confidence_lower=p.confidence_lower,
-                confidence_upper=p.confidence_upper,
+                energy_wh=adj_energy,
+                power_w=adj_power,
+                confidence_lower=max(0, adj_energy - new_uncertainty),
+                confidence_upper=adj_energy + new_uncertainty,
                 method=ForecastMethod.LLM_ENHANCED,
             )
         )
+
+    # Update model version with LLM indicator
+    model_version = base_forecast.model_version
+    if not model_version.endswith("+llm"):
+        model_version = model_version + "+llm"
 
     return GenerationForecast(
         site_id=base_forecast.site_id,
@@ -387,5 +440,69 @@ async def enhance_with_llm(
         forecast_horizon_hours=base_forecast.forecast_horizon_hours,
         points=enhanced_points,
         method=ForecastMethod.LLM_ENHANCED,
-        model_version=base_forecast.model_version + "+llm",
+        model_version=model_version,
     )
+
+
+def _build_llm_context(
+    base_forecast: GenerationForecast,
+    weather: WeatherForecast,
+    site_config: SiteConfig,
+    panel_config: PanelConfig,
+    recent_actuals: pd.DataFrame | None = None,
+) -> str:
+    """Build context string for LLM analysis."""
+    import json
+
+    # Summarize base forecast
+    total_energy = base_forecast.total_energy_wh()
+    avg_power = sum(p.power_w for p in base_forecast.points) / len(base_forecast.points)
+
+    # Summarize weather
+    hourly_summary = []
+    for h in weather.hourly:
+        hourly_summary.append(
+            {
+                "time": h.time.isoformat(),
+                "ghi": h.shortwave_radiation,
+                "cloud_cover": h.cloud_cover,
+                "cloud_low": h.cloud_cover_low,
+                "cloud_mid": h.cloud_cover_mid,
+                "cloud_high": h.cloud_cover_high,
+                "temp": h.temperature_2m,
+                "humidity": h.relative_humidity_2m,
+            }
+        )
+
+    # Historical comparison if available
+    hist_summary = {}
+    if (
+        recent_actuals is not None
+        and not recent_actuals.empty
+        and "energy_wh" in recent_actuals.columns
+    ):
+        hist_summary = {
+            "mean_actual_wh": float(recent_actuals["energy_wh"].mean()),
+            "max_actual_wh": float(recent_actuals["energy_wh"].max()),
+            "count": len(recent_actuals),
+        }
+
+    context = {
+        "site": site_config.site_name,
+        "panel": {
+            "id": panel_config.panel_id,
+            "capacity_kw": panel_config.capacity_kw,
+            "azimuth": panel_config.azimuth,
+            "tilt": panel_config.tilt,
+        },
+        "base_forecast": {
+            "method": base_forecast.method.value,
+            "total_energy_wh": total_energy,
+            "avg_power_w": avg_power,
+            "hours": len(base_forecast.points),
+        },
+        "weather_forecast": hourly_summary,
+        "historical_actuals": hist_summary,
+    }
+
+    return json.dumps(context, indent=2)

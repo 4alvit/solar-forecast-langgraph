@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
+import httpx
 from langgraph.graph import END, StateGraph
 from pydantic import BaseModel, Field
 
@@ -230,12 +231,33 @@ async def inverter_control_hook_node(state: WorkflowState) -> WorkflowState:
                 f"Low generation forecast ({total_near_energy:.0f} Wh in {hook.cloudy_horizon_hours}h) - "
                 f"triggering pre-charge"
             )
-            # TODO: Call inverter-control API to pre-charge battery
-            # async with httpx.AsyncClient() as client:
-            #     await client.post(f"{hook.endpoint}/api/v1/pre-charge", ...)
+            await _trigger_pre_charge(hook, total_near_energy)
 
     state.completed_steps.append("inverter_control_hook")
     return state
+
+
+async def _trigger_pre_charge(hook: InverterControlHook, forecast_energy_wh: float) -> None:
+    """Call inverter-control API to trigger battery pre-charge."""
+    url = f"{hook.endpoint.rstrip('/')}/api/v1/pre-charge"
+    headers = {"Content-Type": "application/json"}
+    if hook.api_key:
+        headers["Authorization"] = f"Bearer {hook.api_key}"
+
+    payload = {
+        "trigger": "low_solar_forecast",
+        "forecast_energy_wh": forecast_energy_wh,
+        "threshold_wh": hook.pre_charge_threshold_wh,
+        "horizon_hours": hook.cloudy_horizon_hours,
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(url, json=payload, headers=headers)
+            response.raise_for_status()
+    except httpx.HTTPError as e:
+        # Log but don't fail workflow - pre-charge is optional
+        pass
 
 
 async def finalize_forecast_node(state: WorkflowState) -> WorkflowState:

@@ -1,7 +1,9 @@
 """Tests for model module."""
 
 import asyncio
+import os
 from datetime import UTC, datetime
+from unittest.mock import AsyncMock, patch
 
 import numpy as np
 import pandas as pd
@@ -397,8 +399,21 @@ def test_forecast_model_statistical_method():
     assert forecast.total_energy_wh() > 0
 
 
-def test_enhance_with_llm():
+@patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
+@patch("langchain_openai.ChatOpenAI")
+def test_enhance_with_llm(mock_chat_openai):
     """Test LLM enhancement function."""
+
+    # Mock the LLM response
+    mock_llm = AsyncMock()
+    mock_llm.ainvoke.return_value = type(
+        "obj",
+        (object,),
+        {
+            "content": '{"power_adjustment_pct": -10, "confidence_multiplier": 0.8, "flags": ["cloudy"], "reasoning": "High cloud cover reduces output"}'
+        },
+    )()
+    mock_chat_openai.return_value = mock_llm
 
     site = create_test_site()
     panel = site.panels[0]
@@ -434,10 +449,24 @@ def test_enhance_with_llm():
     assert enhanced.method == ForecastMethod.LLM_ENHANCED
     assert len(enhanced.points) == 12
     assert enhanced.model_version == "0.1.0+llm"
+    # Power should be reduced by 10%
+    assert all(p.power_w == 900.0 for p in enhanced.points)
 
 
-def test_enhance_with_llm_no_historical():
+@patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
+@patch("langchain_openai.ChatOpenAI")
+def test_enhance_with_llm_no_historical(mock_chat_openai):
     """Test LLM enhancement without historical data."""
+
+    mock_llm = AsyncMock()
+    mock_llm.ainvoke.return_value = type(
+        "obj",
+        (object,),
+        {
+            "content": '{"power_adjustment_pct": 5, "confidence_multiplier": 1.2, "flags": [], "reasoning": "Clear sky forecast"}'
+        },
+    )()
+    mock_chat_openai.return_value = mock_llm
 
     site = create_test_site()
     panel = site.panels[0]
@@ -467,3 +496,40 @@ def test_enhance_with_llm_no_historical():
     enhanced = asyncio.run(enhance_with_llm(base_forecast, weather, site, panel, None))
 
     assert enhanced.method == ForecastMethod.LLM_ENHANCED
+    assert len(enhanced.points) == 12
+    # Power should be increased by 5%
+    assert all(p.power_w == 1050.0 for p in enhanced.points)
+
+
+def test_enhance_with_llm_no_api_key():
+    """Test LLM enhancement gracefully handles missing API key."""
+    site = create_test_site()
+    panel = site.panels[0]
+
+    points = [
+        ForecastPoint(
+            timestamp=datetime(2024, 6, 15, h, 0, tzinfo=UTC),
+            energy_wh=1000.0,
+            power_w=1000.0,
+            confidence_lower=800.0,
+            confidence_upper=1200.0,
+            method=ForecastMethod.ENSEMBLE,
+        )
+        for h in range(6, 18)
+    ]
+
+    base_forecast = GenerationForecast(
+        site_id="test-site",
+        panel_id="test-1",
+        forecast_horizon_hours=12,
+        points=points,
+        method=ForecastMethod.ENSEMBLE,
+    )
+
+    weather = create_test_weather_forecast(12)
+
+    # No API key - should return base forecast unchanged
+    enhanced = asyncio.run(enhance_with_llm(base_forecast, weather, site, panel, None))
+
+    assert enhanced.method == ForecastMethod.ENSEMBLE  # Unchanged
+    assert enhanced.model_version == "0.1.0"  # No +llm suffix
