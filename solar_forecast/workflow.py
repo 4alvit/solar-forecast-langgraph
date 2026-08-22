@@ -56,6 +56,26 @@ def _env_bool(name: str, default: str = "true") -> bool:
     return os.getenv(name, default).strip().lower() in ("1", "true", "yes", "on")
 
 
+def _env_int_opt(name: str) -> int | None:
+    raw = os.getenv(name)
+    if raw is None or raw.strip() == "":
+        return None
+    try:
+        return int(raw)
+    except ValueError:
+        return None
+
+
+def _in_tou_window(start_hour: int, end_hour: int) -> bool:
+    """True while local time is inside [start_hour, end_hour); wraps midnight."""
+    if start_hour < 0 or end_hour < 0 or start_hour == end_hour:
+        return False
+    hour = datetime.now().astimezone().hour  # local wall-clock hour (container TZ)
+    if start_hour < end_hour:
+        return start_hour <= hour < end_hour
+    return hour >= start_hour or hour < end_hour  # wraps midnight
+
+
 class InverterControlHook(BaseModel):
     """Hook for inverter-control integration."""
 
@@ -69,6 +89,10 @@ class InverterControlHook(BaseModel):
     pre_charge_threshold_wh: float = 5000  # Pre-charge if forecast < this
     cloudy_horizon_hours: int = 6  # Hours to look ahead for cloudy period
     webhook_url: str | None = None  # Alternative: push to webhook
+    tou_start_hour: int | None = _env_int_opt(
+        "TOU_EXPENSIVE_START_HOUR"
+    )  # expensive window start (local hour), disabled when unset
+    tou_end_hour: int | None = _env_int_opt("TOU_EXPENSIVE_END_HOUR")
 
 
 async def fetch_weather_node(state: WorkflowState) -> WorkflowState:
@@ -238,11 +262,21 @@ async def inverter_control_hook_node(state: WorkflowState) -> WorkflowState:
     if near_future:
         total_near_energy = sum(p.energy_wh for p in near_future)
         if total_near_energy < hook.pre_charge_threshold_wh:
-            state.warnings.append(
-                f"Low generation forecast ({total_near_energy:.0f} Wh in {hook.cloudy_horizon_hours}h) - "
-                f"triggering pre-charge"
-            )
-            await _trigger_pre_charge(hook, total_near_energy)
+            if (
+                hook.tou_start_hour is not None
+                and hook.tou_end_hour is not None
+                and _in_tou_window(hook.tou_start_hour, hook.tou_end_hour)
+            ):
+                state.warnings.append(
+                    f"Pre-charge suppressed: expensive grid window "
+                    f"({hook.tou_start_hour}:00-{hook.tou_end_hour}:00)"
+                )
+            else:
+                state.warnings.append(
+                    f"Low generation forecast ({total_near_energy:.0f} Wh in {hook.cloudy_horizon_hours}h) - "
+                    f"triggering pre-charge"
+                )
+                await _trigger_pre_charge(hook, total_near_energy)
 
     state.completed_steps.append("inverter_control_hook")
     return state
