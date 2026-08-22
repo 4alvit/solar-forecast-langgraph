@@ -6,6 +6,7 @@ import asyncio
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import httpx
 from pydantic import BaseModel, Field
@@ -121,9 +122,13 @@ class OpenMeteoClient:
         hourly_data = data.get("hourly", {})
         times = hourly_data.get("time", [])
 
+        # OpenMeteo returns naive timestamps in the requested timezone;
+        # attach it so downstream comparisons with UTC-aware datetimes work
+        tz = ZoneInfo(data.get("timezone", "UTC"))
+
         hourly = []
         for i, t_str in enumerate(times):
-            dt = datetime.fromisoformat(t_str)
+            dt = datetime.fromisoformat(t_str).replace(tzinfo=tz)
             hourly.append(
                 WeatherHourly(
                     time=dt,
