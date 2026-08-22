@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+import os
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
@@ -47,14 +49,23 @@ class WorkflowState(BaseModel):
     completed_steps: list[str] = Field(default_factory=list)
 
 
+logger = logging.getLogger(__name__)
+
+
+def _env_bool(name: str, default: str = "true") -> bool:
+    return os.getenv(name, default).strip().lower() in ("1", "true", "yes", "on")
+
+
 class InverterControlHook(BaseModel):
     """Hook for inverter-control integration."""
 
     model_config = {"extra": "forbid"}
 
-    enabled: bool = True
-    endpoint: str = "http://localhost:8081"  # inverter-control API
-    api_key: str | None = None
+    enabled: bool = _env_bool("INVERTER_CONTROL_ENABLED")
+    endpoint: str = os.getenv(
+        "INVERTER_CONTROL_URL", "http://localhost:8081"
+    )  # inverter-control API
+    api_key: str | None = os.getenv("INVERTER_CONTROL_API_KEY") or None
     pre_charge_threshold_wh: float = 5000  # Pre-charge if forecast < this
     cloudy_horizon_hours: int = 6  # Hours to look ahead for cloudy period
     webhook_url: str | None = None  # Alternative: push to webhook
@@ -255,9 +266,10 @@ async def _trigger_pre_charge(hook: InverterControlHook, forecast_energy_wh: flo
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.post(url, json=payload, headers=headers)
             response.raise_for_status()
+            logger.info("Pre-charge triggered at %s: %.0f Wh forecast", url, forecast_energy_wh)
     except httpx.HTTPError as e:
         # Log but don't fail workflow - pre-charge is optional
-        pass
+        logger.warning("Pre-charge call to %s failed: %s", url, e)
 
 
 async def finalize_forecast_node(state: WorkflowState) -> WorkflowState:
@@ -309,12 +321,11 @@ def build_forecast_workflow() -> StateGraph:
     # Enhance forecast
     workflow.add_edge("generate_forecast", "enhance_forecast")
 
-    # Inverter control hook
-    workflow.add_edge("enhance_forecast", "inverter_control_hook")
-
-    # Finalize
-    workflow.add_edge("inverter_control_hook", "finalize_forecast")
-    workflow.add_edge("finalize_forecast", END)
+    # Finalize before the inverter hook so final_forecast is populated
+    # when the pre-charge decision runs
+    workflow.add_edge("enhance_forecast", "finalize_forecast")
+    workflow.add_edge("finalize_forecast", "inverter_control_hook")
+    workflow.add_edge("inverter_control_hook", END)
 
     return workflow
 
