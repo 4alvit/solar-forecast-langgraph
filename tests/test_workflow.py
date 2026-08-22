@@ -370,3 +370,100 @@ def create_mock_weather_forecast():
         timezone="UTC",
         hourly=hourly,
     )
+
+
+@pytest.mark.asyncio
+async def test_train_model_node_persists_trained_model():
+    """Trained model must be stored on state for generate_forecast_node."""
+    import pandas as pd
+
+    site = create_test_site()
+
+    base_time = datetime(2024, 6, 15, tzinfo=UTC)
+    hourly = []
+    for i in range(48):
+        dt = base_time + timedelta(hours=i)
+        hourly.append(
+            WeatherHourly(
+                time=dt,
+                temperature_2m=20.0,
+                relative_humidity_2m=60,
+                cloud_cover=20,
+                cloud_cover_low=5,
+                cloud_cover_mid=10,
+                cloud_cover_high=5,
+                shortwave_radiation=800.0,
+                direct_radiation=600.0,
+                diffuse_radiation=200.0,
+                wind_speed_10m=3.0,
+                wind_direction_10m=180,
+                pressure_msl=1013.25,
+            )
+        )
+    weather = WeatherForecast(
+        latitude=52.37,
+        longitude=4.90,
+        elevation=0,
+        timezone="UTC",
+        hourly=hourly,
+    )
+
+    hist_df = pd.DataFrame(
+        {"energy_wh": [1000.0] * 48},
+        index=pd.to_datetime([base_time + timedelta(hours=i) for i in range(48)], utc=True),
+    )
+
+    state = WorkflowState(
+        site_config=site,
+        panel_id="test-1",
+        historical_df=hist_df,
+        weather_forecast=weather,
+    )
+
+    result = await train_model_node(state)
+
+    assert "train_model" in result.completed_steps
+    assert getattr(result, "_trained_model", None) is not None
+
+
+@pytest.mark.asyncio
+async def test_inverter_control_hook_ignores_past_points():
+    """Pre-charge must not count already-past forecast points."""
+    from solar_forecast.model import ForecastMethod, ForecastPoint, GenerationForecast
+
+    site = create_test_site()
+
+    past_time = datetime.now(UTC) - timedelta(hours=1)
+    mock_forecast = GenerationForecast(
+        site_id="test-site",
+        panel_id="test-1",
+        forecast_horizon_hours=6,
+        points=[
+            ForecastPoint(
+                timestamp=past_time,
+                energy_wh=0,
+                power_w=0,
+                confidence_lower=0,
+                confidence_upper=0,
+                method=ForecastMethod.ENSEMBLE,
+            )
+        ],
+        method=ForecastMethod.ENSEMBLE,
+    )
+
+    state = WorkflowState(
+        site_config=site,
+        panel_id="test-1",
+        final_forecast=mock_forecast,
+    )
+
+    with patch("solar_forecast.workflow.InverterControlHook") as mock_hook_class:
+        mock_hook = InverterControlHook(
+            enabled=True, pre_charge_threshold_wh=5000, cloudy_horizon_hours=6
+        )
+        mock_hook_class.return_value = mock_hook
+
+        result = await inverter_control_hook_node(state)
+
+    pre_charge_warnings = [w for w in result.warnings if "pre-charge" in w.lower()]
+    assert not pre_charge_warnings

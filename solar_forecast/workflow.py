@@ -170,6 +170,7 @@ async def train_model_node(state: WorkflowState) -> WorkflowState:
 
     try:
         model.train(state.weather_forecast, state.historical_df)
+        state._trained_model = model  # persist for generate_forecast_node
         state.completed_steps.append("train_model")
     except Exception as e:
         state.warnings.append(f"Model training failed: {e}")
@@ -252,12 +253,11 @@ async def inverter_control_hook_node(state: WorkflowState) -> WorkflowState:
         state.completed_steps.append("inverter_control_hook")
         return state
 
-    # Check for cloudy period in near future
-    near_future = [
-        p
-        for p in state.final_forecast.points
-        if p.timestamp <= datetime.now(UTC) + timedelta(hours=hook.cloudy_horizon_hours)
-    ]
+    # Check for cloudy period in near future (exclude past points; the weather
+    # fetch includes past_hours=1)
+    now = datetime.now(UTC)
+    horizon_end = now + timedelta(hours=hook.cloudy_horizon_hours)
+    near_future = [p for p in state.final_forecast.points if now <= p.timestamp <= horizon_end]
 
     if near_future:
         total_near_energy = sum(p.energy_wh for p in near_future)
