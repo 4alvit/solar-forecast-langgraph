@@ -46,3 +46,6 @@ data/
 *.csv
 C*.md
 site_config.py
+
+# Local deploy script
+deploy.sh
