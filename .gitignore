@@ -45,3 +45,4 @@ data/
 *.parquet
 *.csv
 C*.md
+site_config.py
