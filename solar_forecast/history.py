@@ -98,7 +98,9 @@ class HistoricalData(BaseModel):
 class InverterMonitoringLoader:
     """Load historical generation data from inverter-monitoring webhook."""
 
-    base_url: str = os.getenv("MONITORING_URL", "http://localhost:8080")  # inverter-monitoring webhook
+    base_url: str = os.getenv(
+        "MONITORING_URL", "http://localhost:8080"
+    )  # inverter-monitoring webhook
     api_key: str | None = None
     timeout: float = 30.0
 
