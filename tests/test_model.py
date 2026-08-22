@@ -533,3 +533,26 @@ def test_enhance_with_llm_no_api_key():
 
     assert enhanced.method == ForecastMethod.ENSEMBLE  # Unchanged
     assert enhanced.model_version == "0.1.0"  # No +llm suffix
+
+
+def test_solar_position_timezone_independent():
+    """Solar position must depend on absolute time, not the wall clock."""
+    from zoneinfo import ZoneInfo
+
+    site = create_test_site()
+    physical = PhysicalModel(site.panels[0])
+    lat, lon = 37.77, -122.5  # San Francisco (UTC-8)
+
+    # Same instant expressed in two timezones -> identical elevation
+    dt_utc = datetime(2024, 6, 21, 21, 0, tzinfo=UTC)  # 14:00 PDT
+    dt_pdt = dt_utc.astimezone(ZoneInfo("America/Los_Angeles"))
+    pos_utc = physical.calculate_solar_position(dt_utc, lat, lon)
+    pos_pdt = physical.calculate_solar_position(dt_pdt, lat, lon)
+    assert abs(pos_utc.elevation - pos_pdt.elevation) < 1e-9
+
+    # Mid-afternoon in SF: sun high; noon UTC (05:00 PDT): sun below horizon
+    assert pos_utc.elevation > 40
+    pos_morning = physical.calculate_solar_position(
+        datetime(2024, 6, 21, 12, 0, tzinfo=UTC), lat, lon
+    )
+    assert pos_morning.elevation < 0

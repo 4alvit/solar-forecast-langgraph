@@ -82,7 +82,13 @@ class PhysicalModel:
         # Simplified solar position calculation
         # For production, use pvlib.solarposition.get_solarposition
         day_of_year = dt.timetuple().tm_yday
-        hour = dt.hour + dt.minute / 60 + dt.second / 3600
+
+        # Local solar time: convert to UTC, then shift by longitude (15 deg/h).
+        # Forecast timestamps may carry any timezone (site default is UTC), so
+        # derive solar time from absolute time instead of the wall clock.
+        # ponytail: no equation-of-time correction (+-16 min), add if it matters.
+        utc_dt = dt.astimezone(UTC) if dt.tzinfo is not None else dt.replace(tzinfo=UTC)
+        hour = utc_dt.hour + utc_dt.minute / 60 + utc_dt.second / 3600 + lon / 15.0
 
         # Solar declination (radians)
         decl = -23.44 * np.cos(2 * np.pi * (day_of_year + 10) / 365) * np.pi / 180
