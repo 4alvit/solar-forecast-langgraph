@@ -556,3 +556,56 @@ def test_solar_position_timezone_independent():
         datetime(2024, 6, 21, 12, 0, tzinfo=UTC), lat, lon
     )
     assert pos_morning.elevation < 0
+
+
+def _noon_weather(cloud_cover: float):
+    """Single noon hour with strong irradiance and given cloud cover."""
+    dt = datetime(2024, 6, 15, 12, 0, tzinfo=UTC)
+    hour = WeatherHourly(
+        time=dt,
+        temperature_2m=20,
+        relative_humidity_2m=60,
+        cloud_cover=cloud_cover,
+        cloud_cover_low=0,
+        cloud_cover_mid=0,
+        cloud_cover_high=0,
+        shortwave_radiation=800,
+        direct_radiation=600,
+        diffuse_radiation=160,
+        wind_speed_10m=3.0,
+        wind_direction_10m=180,
+        pressure_msl=1013.25,
+    )
+    return WeatherForecast(
+        latitude=52.37, longitude=4.90, elevation=0, timezone="UTC", hourly=[hour]
+    )
+
+
+def test_forecast_sums_all_panels():
+    """Without panel_id the physical model must size to the whole site."""
+    site_one = create_test_site()
+    two = create_test_site().panels[0].model_copy(update={"panel_id": "test-2"})
+    site_two = SiteConfig(
+        site_name="test-site",
+        latitude=52.37,
+        longitude=4.90,
+        panels=[site_one.panels[0], two],
+    )
+
+    weather = create_test_weather_forecast(24)
+    one = ForecastModel(site_one).forecast(weather)
+    both = ForecastModel(site_two).forecast(weather)
+
+    total_one = sum(p.power_w for p in one.points)
+    total_two = sum(p.power_w for p in both.points)
+    assert abs(total_two - 2 * total_one) < 1e-6
+
+
+def test_no_double_cloud_derating():
+    """Irradiance already includes clouds; cloud_cover must not derate again."""
+    model = ForecastModel(create_test_site())
+
+    cloudy = model.forecast(_noon_weather(cloud_cover=100))
+    clear = model.forecast(_noon_weather(cloud_cover=0))
+
+    assert cloudy.points[0].power_w == pytest.approx(clear.points[0].power_w)

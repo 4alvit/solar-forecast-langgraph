@@ -280,8 +280,14 @@ class ForecastModel:
         panel_id: str | None = None,
     ):
         self.site_config = site_config
-        self.panel = site_config.panel_by_id(panel_id) if panel_id else site_config.panels[0]
-        self.physical = PhysicalModel(self.panel)
+        if panel_id:
+            panels = [site_config.panel_by_id(panel_id)]
+        else:
+            panels = site_config.panels
+        self.physicals = [PhysicalModel(p) for p in panels]
+        # Representative single-panel views for callers that inspect config
+        self.panel = panels[0]
+        self.physical = self.physicals[0]
         self.statistical = StatisticalModel()
         self.panel_id = panel_id
 
@@ -299,15 +305,18 @@ class ForecastModel:
         points = []
 
         for i, h in enumerate(weather.hourly):
-            # Physical model
-            solar_pos = self.physical.calculate_solar_position(
-                h.time, self.site_config.latitude, self.site_config.longitude
-            )
-            poa = self.physical.calculate_poa_irradiance(
-                solar_pos, h.shortwave_radiation, h.direct_radiation, h.diffuse_radiation
-            )
-            clear_power = self.physical.predict_clear_sky(solar_pos, poa)
-            physical_power = self.physical.apply_cloud_adjustment(clear_power, h.cloud_cover)
+            # Physical model, summed over all (selected) arrays.
+            # OpenMeteo GHI/DNI/DHI already include cloud effects — applying
+            # apply_cloud_adjustment on top double-derated by up to 4x.
+            physical_power = 0.0
+            for phys in self.physicals:
+                solar_pos = phys.calculate_solar_position(
+                    h.time, self.site_config.latitude, self.site_config.longitude
+                )
+                poa = phys.calculate_poa_irradiance(
+                    solar_pos, h.shortwave_radiation, h.direct_radiation, h.diffuse_radiation
+                )
+                physical_power += phys.predict_clear_sky(solar_pos, poa)
 
             # Statistical model (if fitted)
             if self.statistical.is_fitted:
