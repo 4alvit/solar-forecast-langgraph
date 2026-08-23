@@ -109,6 +109,8 @@ class OpenMeteoClient:
             ),
             # past_days is incompatible with forecast_hours (API returns only
             # the truncated future window), so pair it with forecast_days.
+            "forecast_hours": min(horizon_hours, 168),
+            "past_hours": 1,
             "timezone": timezone,
             "models": "best_match",
         }
