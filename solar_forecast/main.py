@@ -6,6 +6,8 @@ import argparse
 import asyncio
 import json
 import sys
+from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from solar_forecast import (
     DEFAULT_SITE,
@@ -83,13 +85,27 @@ async def main_async(
     print(f"  Method: {forecast.method.value}")
     print(f"  Horizon: {forecast.forecast_horizon_hours} hours")
     print(f"  Total Energy: {forecast.total_energy_wh():.0f} Wh")
+
+    # Local-timezone day totals (same aggregation pushed to inverter-control)
+    local_tz = ZoneInfo(panel.timezone if panel else "UTC")
+    from solar_forecast.workflow import _daily_kwh_by_date
+
+    daily = _daily_kwh_by_date(forecast.points, local_tz.key)
+    now_local = datetime.now(UTC).astimezone(local_tz)
+    today_key = now_local.strftime("%Y-%m-%d")
+    tomorrow_key = (now_local + timedelta(days=1)).strftime("%Y-%m-%d")
+    if today_key in daily:
+        print(f"  Today ({today_key}): {daily[today_key]:.2f} kWh")
+    if tomorrow_key in daily:
+        print(f"  Tomorrow ({tomorrow_key}): {daily[tomorrow_key]:.2f} kWh")
+
     print(f"  Generated: {forecast.generated_at.isoformat()}")
 
-    # Print first few points
-    print("\nNext 12 hours:")
+    # Print first few points in site-local time
+    print(f"\nNext 12 hours ({local_tz.key}):")
     for p in forecast.points[:12]:
         print(
-            f"  {p.timestamp.strftime('%Y-%m-%d %H:%M')}: "
+            f"  {p.timestamp.astimezone(local_tz).strftime('%Y-%m-%d %H:%M')}: "
             f"{p.power_w:.0f}W ({p.energy_wh:.0f}Wh) "
             f"[{p.confidence_lower:.0f}-{p.confidence_upper:.0f}]"
         )
