@@ -67,6 +67,16 @@ def _env_int_opt(name: str) -> int | None:
         return None
 
 
+def _env_float(name: str, default: float) -> float:
+    raw = os.getenv(name)
+    if raw is None or raw.strip() == "":
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        return default
+
+
 def _in_tou_window(start_hour: int, end_hour: int) -> bool:
     """True while local time is inside [start_hour, end_hour); wraps midnight."""
     if start_hour < 0 or end_hour < 0 or start_hour == end_hour:
@@ -87,7 +97,9 @@ class InverterControlHook(BaseModel):
         "INVERTER_CONTROL_URL", "http://localhost:8081"
     )  # inverter-control API
     api_key: str | None = os.getenv("INVERTER_CONTROL_API_KEY") or None
-    pre_charge_threshold_wh: float = 5000  # Pre-charge if forecast < this
+    pre_charge_threshold_wh: float = _env_float(
+        "PRE_CHARGE_THRESHOLD_WH", 5000
+    )  # Pre-charge if forecast < this (sized to the site's array)
     cloudy_horizon_hours: int = 6  # Hours to look ahead for cloudy period
     webhook_url: str | None = None  # Alternative: push to webhook
     tou_start_hour: int | None = _env_int_opt(
