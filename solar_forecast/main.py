@@ -87,10 +87,7 @@ async def main_async(
     print(f"  Total Energy: {forecast.total_energy_wh():.0f} Wh")
 
     # Local-timezone day totals (same aggregation pushed to inverter-control)
-    tz_panel = (
-        site_config.panel_by_id(panel_id) if panel_id else site_config.panels[0]
-    )
-    local_tz = ZoneInfo(tz_panel.timezone or "UTC")
+    local_tz = ZoneInfo(site_config.timezone or "UTC")
     from solar_forecast.workflow import _daily_kwh_by_date
 
     daily = _daily_kwh_by_date(forecast.points, local_tz.key)
