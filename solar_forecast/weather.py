@@ -69,6 +69,7 @@ class OpenMeteoClient:
         longitude: float,
         horizon_hours: int = 168,
         timezone: str = "UTC",
+        past_days: int = 0,
     ) -> WeatherForecast:
         """Fetch weather forecast for location.
 
@@ -77,6 +78,8 @@ class OpenMeteoClient:
             longitude: Site longitude
             horizon_hours: Forecast horizon in hours (max 168 for free tier)
             timezone: IANA timezone for response times
+            past_days: Days of historical weather to prepend (0-92), used to
+                train the statistical model against past generation data
 
         Returns:
             WeatherForecast with hourly data
@@ -105,7 +108,8 @@ class OpenMeteoClient:
                 ]
             ),
             "forecast_hours": min(horizon_hours, 168),
-            "past_hours": 1,
+            # past_days replaces past_hours when set (past_hours maxes at 48)
+            **({"past_days": past_days} if past_days > 0 else {"past_hours": 1}),
             "timezone": timezone,
             "models": "best_match",
         }

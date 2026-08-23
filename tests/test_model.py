@@ -609,3 +609,26 @@ def test_no_double_cloud_derating():
     clear = model.forecast(_noon_weather(cloud_cover=0))
 
     assert cloudy.points[0].power_w == pytest.approx(clear.points[0].power_w)
+
+
+def test_statistical_model_fit_past_weather():
+    """fit() trains when weather covers the same past hours as generation.
+
+    Regression: training used to join history against future-only forecast
+    weather, so the inner join was always empty.
+    """
+    stat = StatisticalModel()
+    weather = create_test_weather_forecast(48)
+
+    hist_rows = [
+        {"timestamp": h.time, "energy_wh": max(0, h.shortwave_radiation * 4.5)}
+        for h in weather.hourly
+    ]
+    hist_df = pd.DataFrame(hist_rows).set_index("timestamp")
+
+    stat.fit(weather, hist_df)
+    assert stat.is_fitted
+
+    preds = stat.predict(weather)
+    assert len(preds) == 48
+    assert (preds >= 0).all()

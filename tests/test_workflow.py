@@ -420,7 +420,9 @@ async def test_train_model_node_persists_trained_model():
         weather_forecast=weather,
     )
 
-    result = await train_model_node(state)
+    with patch("solar_forecast.workflow.OpenMeteoClient") as mock_client_cls:
+        mock_client_cls.return_value.fetch_forecast = AsyncMock(return_value=weather)
+        result = await train_model_node(state)
 
     assert "train_model" in result.completed_steps
     assert getattr(result, "_trained_model", None) is not None

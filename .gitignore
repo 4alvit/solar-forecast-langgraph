@@ -49,3 +49,6 @@ site_config.py
 
 # Local deploy script
 deploy.sh
+
+# Force-run script
+run-now.sh

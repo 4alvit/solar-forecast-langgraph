@@ -189,8 +189,19 @@ async def train_model_node(state: WorkflowState) -> WorkflowState:
     )
     model = ForecastModel(state.site_config, state.panel_id)
 
+    # Train on PAST weather matched to generation history; the forecast weather
+    # only covers future hours so joining against it always came up empty.
     try:
-        model.train(state.weather_forecast, state.historical_df)
+        client = OpenMeteoClient()
+        past_weather = await client.fetch_forecast(
+            latitude=panel.latitude,
+            longitude=panel.longitude,
+            horizon_hours=1,
+            timezone=panel.timezone,
+            past_days=state.lookback_days,
+        )
+        hourly_history = state.historical_df.resample("1h").sum(numeric_only=True)
+        model.train(past_weather, hourly_history)
         state._trained_model = model  # persist for generate_forecast_node
         state.completed_steps.append("train_model")
     except Exception as e:
