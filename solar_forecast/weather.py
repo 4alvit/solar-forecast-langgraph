@@ -107,12 +107,16 @@ class OpenMeteoClient:
                     "pressure_msl",
                 ]
             ),
-            "forecast_hours": min(horizon_hours, 168),
-            # past_days replaces past_hours when set (past_hours maxes at 48)
-            **({"past_days": past_days} if past_days > 0 else {"past_hours": 1}),
+            # past_days is incompatible with forecast_hours (API returns only
+            # the truncated future window), so pair it with forecast_days.
             "timezone": timezone,
             "models": "best_match",
         }
+        if past_days > 0:
+            del params["forecast_hours"]
+            del params["past_hours"]
+            params["past_days"] = past_days
+            params["forecast_days"] = -(-min(horizon_hours, 168) // 24)
 
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             response = await client.get(self.base_url, params=params)
