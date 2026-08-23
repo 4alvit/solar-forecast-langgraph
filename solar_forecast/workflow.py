@@ -13,7 +13,11 @@ from langgraph.graph import END, StateGraph
 from pydantic import BaseModel, Field
 
 from solar_forecast.config import SiteConfig
-from solar_forecast.history import HistoricalData, InverterMonitoringLoader
+from solar_forecast.history import (
+    HistoricalData,
+    InfluxDBGenerationLoader,
+    InverterMonitoringLoader,
+)
 from solar_forecast.model import (
     ForecastMethod,
     ForecastModel,
@@ -141,7 +145,11 @@ async def fetch_history_node(state: WorkflowState) -> WorkflowState:
         else state.site_config.panels[0]
     )
 
-    loader = InverterMonitoringLoader()
+    # InfluxDB backend when configured; legacy inverter-monitoring API otherwise
+    if os.getenv("INFLUX_URL"):
+        loader = InfluxDBGenerationLoader()
+    else:
+        loader = InverterMonitoringLoader()
     end = datetime.now(UTC)
     start = end - timedelta(days=state.lookback_days)
 
