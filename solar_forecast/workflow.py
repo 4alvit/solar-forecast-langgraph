@@ -6,6 +6,7 @@ import logging
 import os
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
+from zoneinfo import ZoneInfo
 
 import httpx
 from langgraph.graph import END, StateGraph
@@ -278,8 +279,65 @@ async def inverter_control_hook_node(state: WorkflowState) -> WorkflowState:
                 )
                 await _trigger_pre_charge(hook, total_near_energy)
 
+    # Publish today/tomorrow kWh summary every run for dashboard display
+    panel = (
+        state.site_config.panel_by_id(state.panel_id)
+        if state.panel_id
+        else state.site_config.panels[0]
+    )
+    await _post_daily_forecast(hook, state.final_forecast, panel.timezone)
+
     state.completed_steps.append("inverter_control_hook")
     return state
+
+
+def _daily_kwh_by_date(points: list, tz_name: str) -> dict[str, float]:
+    """Sum forecast energy into kWh totals keyed by local calendar date (YYYY-MM-DD)."""
+    try:
+        tz = ZoneInfo(tz_name)
+    except Exception:
+        tz = UTC
+    totals: dict[str, float] = {}
+    for p in points:
+        local_day = p.timestamp.astimezone(tz).strftime("%Y-%m-%d")
+        totals[local_day] = totals.get(local_day, 0.0) + p.energy_wh / 1000.0
+    return totals
+
+
+async def _post_daily_forecast(
+    hook: InverterControlHook,
+    forecast: GenerationForecast,
+    timezone_name: str,
+) -> None:
+    """Push today/tomorrow kWh summary to inverter-control for MQTT relay."""
+    now_local = datetime.now(UTC).astimezone(ZoneInfo(timezone_name))
+    daily = _daily_kwh_by_date(forecast.points, timezone_name)
+    today_key = now_local.strftime("%Y-%m-%d")
+    tomorrow_key = (now_local + timedelta(days=1)).strftime("%Y-%m-%d")
+
+    payload: dict[str, Any] = {
+        "site_id": forecast.site_id,
+        "generated_at": datetime.now(UTC).isoformat(),
+        "date": today_key,
+    }
+    if today_key in daily:
+        payload["today_kwh"] = round(daily[today_key], 2)
+    if tomorrow_key in daily:
+        payload["tomorrow_kwh"] = round(daily[tomorrow_key], 2)
+
+    url = f"{hook.endpoint.rstrip('/')}/api/v1/forecast"
+    headers = {"Content-Type": "application/json"}
+    if hook.api_key:
+        headers["Authorization"] = f"Bearer {hook.api_key}"
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(url, json=payload, headers=headers)
+            response.raise_for_status()
+            logger.info("Daily forecast posted to %s: %s", url, payload)
+    except httpx.HTTPError as e:
+        # Log but don't fail workflow - dashboard relay is optional
+        logger.warning("Daily forecast post to %s failed: %s", url, e)
 
 
 async def _trigger_pre_charge(hook: InverterControlHook, forecast_energy_wh: float) -> None:

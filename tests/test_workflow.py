@@ -467,3 +467,103 @@ async def test_inverter_control_hook_ignores_past_points():
 
     pre_charge_warnings = [w for w in result.warnings if "pre-charge" in w.lower()]
     assert not pre_charge_warnings
+
+
+def test_daily_kwh_by_date_utc():
+    from solar_forecast.model import ForecastMethod, ForecastPoint, GenerationForecast
+    from solar_forecast.workflow import _daily_kwh_by_date
+
+    base = datetime(2026, 8, 22, 12, 0, tzinfo=UTC)
+    forecast = GenerationForecast(
+        site_id="test-site",
+        panel_id="test-1",
+        forecast_horizon_hours=6,
+        points=[
+            ForecastPoint(
+                timestamp=base + timedelta(hours=h),
+                energy_wh=1000,
+                power_w=0,
+                confidence_lower=0,
+                confidence_upper=0,
+                method=ForecastMethod.ENSEMBLE,
+            )
+            for h in range(6)
+        ],
+        method=ForecastMethod.ENSEMBLE,
+    )
+
+    daily = _daily_kwh_by_date(forecast.points, "UTC")
+    assert daily == {"2026-08-22": 6.0}
+
+
+def test_daily_kwh_by_date_timezone_split():
+    """Points near midnight split across local dates when TZ shifts the day."""
+    from solar_forecast.model import ForecastMethod, ForecastPoint, GenerationForecast
+    from solar_forecast.workflow import _daily_kwh_by_date
+
+    # 2026-08-22 23:00 UTC == 2026-08-23 01:00 in Europe/Amsterdam (UTC+2 in summer)
+    forecast = GenerationForecast(
+        site_id="test-site",
+        panel_id="test-1",
+        forecast_horizon_hours=4,
+        points=[
+            ForecastPoint(
+                timestamp=datetime(2026, 8, 22, 21, 0, tzinfo=UTC) + timedelta(hours=h),
+                energy_wh=500,
+                power_w=0,
+                confidence_lower=0,
+                confidence_upper=0,
+                method=ForecastMethod.ENSEMBLE,
+            )
+            for h in range(4)
+        ],
+        method=ForecastMethod.ENSEMBLE,
+    )
+
+    daily = _daily_kwh_by_date(forecast.points, "Europe/Amsterdam")
+    assert daily == {"2026-08-22": 0.5, "2026-08-23": 1.5}
+
+
+@pytest.mark.asyncio
+async def test_post_daily_forecast_payload():
+    """Daily summary posts today/tomorrow kWh to /api/v1/forecast."""
+    from solar_forecast.model import ForecastMethod, ForecastPoint, GenerationForecast
+    from solar_forecast.workflow import _post_daily_forecast
+
+    now = datetime.now(UTC)
+    points = [
+        ForecastPoint(
+            timestamp=now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=h),
+            energy_wh=2000,
+            power_w=0,
+            confidence_lower=0,
+            confidence_upper=0,
+            method=ForecastMethod.ENSEMBLE,
+        )
+        for h in range(48)
+    ]
+    forecast = GenerationForecast(
+        site_id="test-site",
+        panel_id="test-1",
+        forecast_horizon_hours=48,
+        points=points,
+        method=ForecastMethod.ENSEMBLE,
+    )
+    hook = InverterControlHook(enabled=True)
+
+    with patch("solar_forecast.workflow.httpx.AsyncClient") as mock_client_cls:
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post.return_value.raise_for_status = lambda: None
+        mock_client_cls.return_value = mock_client
+
+        await _post_daily_forecast(hook, forecast, "Europe/Amsterdam")
+
+    assert mock_client.post.call_count == 1
+    url = mock_client.post.call_args[0][0]
+    payload = mock_client.post.call_args[1]["json"]
+    assert url.endswith("/api/v1/forecast")
+    assert payload["site_id"] == "test-site"
+    assert payload["today_kwh"] > 0 or payload.get("today_kwh") == 0
+    assert "tomorrow_kwh" in payload
