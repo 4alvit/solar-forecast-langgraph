@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import os
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -186,6 +188,120 @@ class InverterMonitoringLoader:
             end_date=records[-1].timestamp,
             interval_minutes=data.get("interval_minutes", 15),
         )
+
+    async def fetch_recent_days(
+        self, site_id: str, days: int = 30, panel_id: str | None = None
+    ) -> HistoricalData:
+        """Fetch recent generation data."""
+        end = datetime.now(UTC)
+        start = end - timedelta(days=days)
+        return await self.fetch_generation(site_id, start, end, panel_id)
+
+
+@dataclass
+class InfluxDBGenerationLoader:
+    """Load historical generation from the InfluxDB written by inverter-monitoring.
+
+    Telegraf stores instantaneous PV power (W) as measurement ``inverter``,
+    field ``pv_total``. Energy per window is derived as mean(W) * window hours.
+    """
+
+    url: str = os.getenv("INFLUX_URL", "http://localhost:8086")
+    token: str = os.getenv("INFLUX_TOKEN", "")
+    org: str = os.getenv("INFLUX_ORG", "home")
+    bucket: str = os.getenv("INFLUX_BUCKET", "inverter")
+    field: str = "pv_total"
+    window_minutes: int = 15
+    timeout: float = 30.0
+
+    async def fetch_generation(
+        self,
+        site_id: str,
+        start: datetime,
+        end: datetime,
+        panel_id: str | None = None,
+    ) -> HistoricalData:
+        """Query aggregated PV power and convert to energy records."""
+
+        import httpx
+
+        flux = (
+            f'from(bucket:"{self.bucket}")\n'
+            f"  |> range(start: {int(start.timestamp())}, stop: {int(end.timestamp())})\n"
+            f'  |> filter(fn:(r) => r._measurement == "inverter"'
+            f' and r._field == "{self.field}")\n'
+            f"  |> aggregateWindow(every: {self.window_minutes}m,"
+            " fn: mean, createEmpty: false)\n"
+        )
+
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            response = await client.post(
+                f"{self.url.rstrip('/')}/api/v2/query",
+                params={"org": self.org},
+                headers={
+                    "Authorization": f"Token {self.token}",
+                    "Accept": "application/csv",
+                    "Content-Type": "application/vnd.flux",
+                },
+                content=flux,
+            )
+            response.raise_for_status()
+            rows = self._parse_csv(response.text)
+
+        wh_per_sample = self.window_minutes * 60 / 3600  # W * h -> Wh
+        records = [
+            GenerationRecord(
+                timestamp=row_time,
+                site_id=site_id,
+                panel_id=panel_id,
+                energy_wh=max(0.0, value) * wh_per_sample,  # night noise < 0
+                power_w=max(0.0, value),
+            )
+            for row_time, value in rows
+        ]
+        if not records:
+            return HistoricalData(
+                site_id=site_id,
+                panel_id=panel_id,
+                records=[],
+                start_date=start,
+                end_date=end,
+            )
+
+        records.sort(key=lambda r: r.timestamp)
+        return HistoricalData(
+            site_id=site_id,
+            panel_id=panel_id,
+            records=records,
+            start_date=records[0].timestamp,
+            end_date=records[-1].timestamp,
+            interval_minutes=self.window_minutes,
+        )
+
+    def _parse_csv(self, text: str) -> list[tuple[datetime, float]]:
+        """Parse annotated influx CSV into (time, mean_watts) pairs."""
+        reader = csv.reader(io.StringIO(text))
+        header: list[str] | None = None
+        out: list[tuple[datetime, float]] = []
+        for row in reader:
+            if not row or row[0].startswith("#"):
+                continue
+            if row == header:
+                continue  # subsequent table blocks repeat the header
+            if header is None:
+                header = row
+                idx = {name: i for i, name in enumerate(header)}
+                continue
+            try:
+                out.append(
+                    (
+                        datetime.fromisoformat(row[idx["_time"]]).replace(tzinfo=UTC),
+                        float(row[idx["_value"]]),
+                    )
+                )
+            except (KeyError, ValueError, IndexError):
+                continue
+        return out
 
     async def fetch_recent_days(
         self, site_id: str, days: int = 30, panel_id: str | None = None
