@@ -369,3 +369,79 @@ class LocalCSVLoader:
             end_date=records[-1].timestamp,
             interval_minutes=15,
         )
+
+
+class PrometheusGenerationLoader:
+    """Load historical generation from the venus-observability Prometheus.
+
+    Scrapes ``sum(victron_pv_power)`` (W, from the Cerbo observability
+    agent) and derives per-window energy as mean(W) * window hours.
+    """
+
+    url: str = os.getenv("PROMETHEUS_URL", "http://localhost:9090")
+    query: str = "sum(victron_pv_power)"
+    window_minutes: int = 15
+    timeout: float = 30.0
+
+    async def fetch_generation(
+        self,
+        site_id: str,
+        start: datetime,
+        end: datetime,
+        panel_id: str | None = None,
+    ) -> HistoricalData:
+        """Query range-vector PV power and convert to energy records."""
+
+        import httpx
+
+        step_seconds = self.window_minutes * 60
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            response = await client.get(
+                f"{self.url.rstrip('/')}/api/v1/query_range",
+                params={
+                    "query": self.query,
+                    "start": int(start.timestamp()),
+                    "end": int(end.timestamp()),
+                    "step": f"{step_seconds}s",
+                },
+            )
+            response.raise_for_status()
+            payload = response.json()
+
+        if payload.get("status") != "success":
+            raise ValueError(f"Prometheus query failed: {payload.get('error', 'unknown')}")
+
+        results = payload.get("data", {}).get("result", [])
+        records: list[GenerationRecord] = []
+        wh_per_sample = self.window_minutes * 60 / 3600  # W * h -> Wh
+        for series in results:
+            for ts, value in series.get("values", []):
+                watts = float(value)
+                records.append(
+                    GenerationRecord(
+                        timestamp=datetime.fromtimestamp(ts, tz=UTC),
+                        site_id=site_id,
+                        panel_id=panel_id,
+                        energy_wh=max(0.0, watts) * wh_per_sample,
+                        power_w=max(0.0, watts),
+                    )
+                )
+
+        if not records:
+            return HistoricalData(
+                site_id=site_id,
+                panel_id=panel_id,
+                records=[],
+                start_date=start,
+                end_date=end,
+            )
+
+        records.sort(key=lambda r: r.timestamp)
+        return HistoricalData(
+            site_id=site_id,
+            panel_id=panel_id,
+            records=records,
+            start_date=records[0].timestamp,
+            end_date=records[-1].timestamp,
+            interval_minutes=self.window_minutes,
+        )
