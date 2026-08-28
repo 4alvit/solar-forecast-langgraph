@@ -52,3 +52,4 @@ deploy.sh
 
 # Force-run script
 run-now.sh
+*.backup
