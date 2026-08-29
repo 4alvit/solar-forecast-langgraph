@@ -167,29 +167,42 @@ See [site_config.example.py](site_config.example.py) for full example.
 
 ## Inverter-Control Integration
 
-The workflow includes a hook for **pre-charging batteries** before forecasted cloudy periods:
+The workflow publishes forecast data and pre-charge requests to the Cerbo GX MQTT broker (Venus OS `N/` namespace):
 
 ```mermaid
 sequenceDiagram
     participant WF as LangGraph Workflow
     participant FC as Forecast
+    participant CB as Cerbo GX MQTT
     participant IC as Inverter-Control
-    
+
     WF->>FC: Generate 48h forecast
     FC->>WF: Forecast points with confidence
+    WF->>CB: Publish N/{site}/solar_forecast/forecast_json (retain=True)
     WF->>WF: Analyze next 6h total energy
-    alt Low generation (< 5kWh in 6h)
-        WF->>IC: POST /api/v1/pre-charge
+    alt Low generation (< threshold in 6h)
+        WF->>CB: Publish N/{site}/solar_forecast/pre_charge_request (retain=False)
+        CB->>IC: Deliver pre-charge request
         IC->>IC: Increase battery target SoC
-        IC-->>WF: Pre-charge initiated
     end
 ```
 
-Enable in config:
-```python
-# In site_config.local.py
-INVERTER_CONTROL_URL = "http://inverter-control:8081"
-INVERTER_CONTROL_API_KEY = "your-key"
+Topics published:
+
+| Topic | retain | Payload |
+|-------|--------|---------|
+| `N/{site_id}/solar_forecast/forecast_json` | True | Daily kWh summary (`today_kwh`, `tomorrow_kwh`) |
+| `N/{site_id}/solar_forecast/pre_charge_request` | False | Pre-charge trigger with threshold and horizon |
+
+Environment variables:
+```bash
+INVERTER_CONTROL_ENABLED=true          # Enable the hook
+MQTT_BROKER=localhost                # Cerbo GX MQTT broker host
+MQTT_PORT=1883                       # MQTT port
+SITE_ID=default                      # Site identifier used in topic paths
+PRE_CHARGE_THRESHOLD_WH=5000         # Pre-charge if forecast < this (Wh in cloudy_horizon_hours)
+TOU_EXPENSIVE_START_HOUR=22          # Optional: suppress pre-charge during expensive grid window
+TOU_EXPENSIVE_END_HOUR=6
 ```
 
 ---
