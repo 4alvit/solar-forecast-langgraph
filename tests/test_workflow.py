@@ -159,7 +159,9 @@ def test_inverter_control_hook_defaults():
     hook = InverterControlHook()
 
     assert hook.enabled is True
-    assert hook.endpoint == "http://localhost:8081"
+    assert hook.mqtt_broker == "localhost"
+    assert hook.mqtt_port == 1883
+    assert hook.site_id == "default"
     assert hook.pre_charge_threshold_wh == 5000
     assert hook.cloudy_horizon_hours == 6
 
@@ -294,16 +296,27 @@ async def test_inverter_control_hook_node_triggers_precharge():
     with patch("solar_forecast.workflow.InverterControlHook") as mock_hook_class:
         # Default hook has pre_charge_threshold_wh=5000, cloudy_horizon_hours=6
         mock_hook = InverterControlHook(
-            enabled=True, pre_charge_threshold_wh=5000, cloudy_horizon_hours=6
+            enabled=True,
+            pre_charge_threshold_wh=5000,
+            cloudy_horizon_hours=6,
+            mqtt_broker="localhost",
+            mqtt_port=1883,
+            site_id="test-site",
         )
         mock_hook_class.return_value = mock_hook
 
-        result = await inverter_control_hook_node(state)
+        with (
+            patch("solar_forecast.workflow._trigger_pre_charge") as mock_precharge,
+            patch("solar_forecast.workflow._post_daily_forecast") as mock_post,
+        ):
+            mock_post.return_value = None
+            result = await inverter_control_hook_node(state)
 
     assert "inverter_control_hook" in result.completed_steps
     # Should add warning about low generation
     assert len(result.warnings) > 0
     assert "pre-charge" in result.warnings[0].lower()
+    assert mock_precharge.call_count == 1
 
 
 @pytest.mark.asyncio
@@ -461,11 +474,17 @@ async def test_inverter_control_hook_ignores_past_points():
 
     with patch("solar_forecast.workflow.InverterControlHook") as mock_hook_class:
         mock_hook = InverterControlHook(
-            enabled=True, pre_charge_threshold_wh=5000, cloudy_horizon_hours=6
+            enabled=True,
+            pre_charge_threshold_wh=5000,
+            cloudy_horizon_hours=6,
+            mqtt_broker="localhost",
+            mqtt_port=1883,
+            site_id="test-site",
         )
         mock_hook_class.return_value = mock_hook
 
-        result = await inverter_control_hook_node(state)
+        with patch("solar_forecast.workflow._post_daily_forecast"):
+            result = await inverter_control_hook_node(state)
 
     pre_charge_warnings = [w for w in result.warnings if "pre-charge" in w.lower()]
     assert not pre_charge_warnings
@@ -528,7 +547,7 @@ def test_daily_kwh_by_date_timezone_split():
 
 @pytest.mark.asyncio
 async def test_post_daily_forecast_payload():
-    """Daily summary posts today/tomorrow kWh to /api/v1/forecast."""
+    """Daily summary publishes today/tomorrow kWh to MQTT topic."""
     from solar_forecast.model import ForecastMethod, ForecastPoint, GenerationForecast
     from solar_forecast.workflow import _post_daily_forecast
 
@@ -551,21 +570,20 @@ async def test_post_daily_forecast_payload():
         points=points,
         method=ForecastMethod.ENSEMBLE,
     )
-    hook = InverterControlHook(enabled=True)
+    hook = InverterControlHook(enabled=True, site_id="my-site")
 
-    with patch("solar_forecast.workflow.httpx.AsyncClient") as mock_client_cls:
-        mock_client = AsyncMock()
-        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-        mock_client.__aexit__ = AsyncMock(return_value=False)
-        mock_client.post.return_value.raise_for_status = lambda: None
-        mock_client_cls.return_value = mock_client
-
+    with patch("solar_forecast.workflow.mqtt_publish.single") as mock_single:
         await _post_daily_forecast(hook, forecast, "Europe/Amsterdam")
 
-    assert mock_client.post.call_count == 1
-    url = mock_client.post.call_args[0][0]
-    payload = mock_client.post.call_args[1]["json"]
-    assert url.endswith("/api/v1/forecast")
+    assert mock_single.call_count == 1
+    call_kwargs = mock_single.call_args[1]
+    assert call_kwargs["hostname"] == "localhost"
+    assert call_kwargs["port"] == 1883
+    assert call_kwargs["retain"] is True
+    topic = call_kwargs["topic"]
+    assert topic == "N/my-site/solar_forecast/forecast_json"
+    import json
+
+    payload = json.loads(call_kwargs["payload"])
     assert payload["site_id"] == "test-site"
-    assert payload["today_kwh"] > 0 or payload.get("today_kwh") == 0
-    assert "tomorrow_kwh" in payload
+    assert "today_kwh" in payload or "tomorrow_kwh" in payload

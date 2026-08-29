@@ -2,15 +2,23 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 from zoneinfo import ZoneInfo
 
-import httpx
 from langgraph.graph import END, StateGraph
 from pydantic import BaseModel, Field
+
+try:
+    import paho.mqtt.publish as mqtt_publish
+
+    MQTT_AVAILABLE = True
+except Exception:  # pragma: no cover
+    mqtt_publish = None
+    MQTT_AVAILABLE = False
 
 from solar_forecast.config import SiteConfig
 from solar_forecast.history import (
@@ -92,23 +100,21 @@ def _in_tou_window(start_hour: int, end_hour: int) -> bool:
 
 
 class InverterControlHook(BaseModel):
-    """Hook for inverter-control integration."""
+    """Hook for inverter-control integration via MQTT."""
 
     model_config = {"extra": "forbid"}
 
     enabled: bool = _env_bool("INVERTER_CONTROL_ENABLED")
-    endpoint: str = os.getenv(
-        "INVERTER_CONTROL_URL", "http://localhost:8081"
-    )  # inverter-control API
-    api_key: str | None = os.getenv("INVERTER_CONTROL_API_KEY") or None
+    mqtt_broker: str = os.getenv("MQTT_BROKER", "localhost")
+    mqtt_port: int = int(os.getenv("MQTT_PORT", "1883"))
+    site_id: str = os.getenv("SITE_ID", "default")
     pre_charge_threshold_wh: float = _env_float(
         "PRE_CHARGE_THRESHOLD_WH", 5000
     )  # Pre-charge if forecast < this (sized to the site's array)
     cloudy_horizon_hours: int = 6  # Hours to look ahead for cloudy period
-    webhook_url: str | None = None  # Alternative: push to webhook
     tou_start_hour: int | None = _env_int_opt(
         "TOU_EXPENSIVE_START_HOUR"
-    )  # expensive window start (local hour), disabled when unset
+    )  # Suppress pre-charge during expensive TOU window
     tou_end_hour: int | None = _env_int_opt("TOU_EXPENSIVE_END_HOUR")
 
 
@@ -340,7 +346,7 @@ async def _post_daily_forecast(
     forecast: GenerationForecast,
     timezone_name: str,
 ) -> None:
-    """Push today/tomorrow kWh summary to inverter-control for MQTT relay."""
+    """Publish today/tomorrow kWh summary to N/{site}/solar_forecast/forecast_json (retain)."""
     now_local = datetime.now(UTC).astimezone(ZoneInfo(timezone_name))
     daily = _daily_kwh_by_date(forecast.points, timezone_name)
     today_key = now_local.strftime("%Y-%m-%d")
@@ -356,43 +362,74 @@ async def _post_daily_forecast(
     if tomorrow_key in daily:
         payload["tomorrow_kwh"] = round(daily[tomorrow_key], 2)
 
-    url = f"{hook.endpoint.rstrip('/')}/api/v1/forecast"
-    headers = {"Content-Type": "application/json"}
-    if hook.api_key:
-        headers["Authorization"] = f"Bearer {hook.api_key}"
+    if not MQTT_AVAILABLE or mqtt_publish is None:
+        logger.warning("paho-mqtt not available; skipping forecast publish")
+        return
 
+    topic = f"N/{hook.site_id}/solar_forecast/forecast_json"
+    msg_payload = json.dumps(payload)
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.post(url, json=payload, headers=headers)
-            response.raise_for_status()
-            logger.info("Daily forecast posted to %s: %s", url, payload)
-    except httpx.HTTPError as e:
-        # Log but don't fail workflow - dashboard relay is optional
-        logger.warning("Daily forecast post to %s failed: %s", url, e)
+        mqtt_publish.single(
+            topic=topic,
+            payload=msg_payload,
+            hostname=hook.mqtt_broker,
+            port=hook.mqtt_port,
+            retain=True,
+        )
+        logger.info(
+            "Published forecast to %s on %s:%d (retain=True): %s",
+            topic,
+            hook.mqtt_broker,
+            hook.mqtt_port,
+            msg_payload,
+        )
+    except Exception as e:
+        logger.warning(
+            "Forecast publish to %s:%d topic %s failed: %s",
+            hook.mqtt_broker,
+            hook.mqtt_port,
+            topic,
+            e,
+        )
 
 
 async def _trigger_pre_charge(hook: InverterControlHook, forecast_energy_wh: float) -> None:
-    """Call inverter-control API to trigger battery pre-charge."""
-    url = f"{hook.endpoint.rstrip('/')}/api/v1/pre-charge"
-    headers = {"Content-Type": "application/json"}
-    if hook.api_key:
-        headers["Authorization"] = f"Bearer {hook.api_key}"
+    """Publish pre-charge request to N/{site}/solar_forecast/pre_charge_request."""
+    if not MQTT_AVAILABLE or mqtt_publish is None:
+        logger.warning("paho-mqtt not available; skipping pre-charge publish")
+        return
 
+    topic = f"N/{hook.site_id}/solar_forecast/pre_charge_request"
     payload = {
         "trigger": "low_solar_forecast",
         "forecast_energy_wh": forecast_energy_wh,
         "threshold_wh": hook.pre_charge_threshold_wh,
         "horizon_hours": hook.cloudy_horizon_hours,
     }
-
+    msg_payload = json.dumps(payload)
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.post(url, json=payload, headers=headers)
-            response.raise_for_status()
-            logger.info("Pre-charge triggered at %s: %.0f Wh forecast", url, forecast_energy_wh)
-    except httpx.HTTPError as e:
-        # Log but don't fail workflow - pre-charge is optional
-        logger.warning("Pre-charge call to %s failed: %s", url, e)
+        mqtt_publish.single(
+            topic=topic,
+            payload=msg_payload,
+            hostname=hook.mqtt_broker,
+            port=hook.mqtt_port,
+            retain=False,
+        )
+        logger.info(
+            "Pre-charge request published to %s on %s:%d: %.0f Wh forecast",
+            topic,
+            hook.mqtt_broker,
+            hook.mqtt_port,
+            forecast_energy_wh,
+        )
+    except Exception as e:
+        logger.warning(
+            "Pre-charge publish to %s:%d topic %s failed: %s",
+            hook.mqtt_broker,
+            hook.mqtt_port,
+            topic,
+            e,
+        )
 
 
 async def finalize_forecast_node(state: WorkflowState) -> WorkflowState:
