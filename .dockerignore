@@ -12,3 +12,12 @@ logs
 *.local.py
 htmlcov
 .coverage
+
+# Secrets / local site config — mount at runtime, never bake
+.env
+.env.*
+!.env.example
+site_config.py
+site_config.local.py
+*.pem
+*.key
