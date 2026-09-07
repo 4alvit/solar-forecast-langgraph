@@ -291,6 +291,18 @@ solar-forecast-langgraph/
 
 ---
 
+## Docker
+
+Multi-arch images (`linux/amd64`, `linux/arm64`) publish to GHCR on `main`, `v*` tags, and `workflow_dispatch`:
+
+```bash
+docker pull ghcr.io/4alvit/solar-forecast-langgraph:latest
+```
+
+After the first publish, set the GHCR package visibility to **public** (Packages → package settings) so Synology/Portainer can pull without a registry login — same pattern as other public `4alvit` images.
+
+Portainer compose should use `ghcr.io/4alvit/solar-forecast-langgraph:${IMAGE_TAG:-latest}` with `pull_image` enabled once the package is public.
+
 ## Related Projects
 
 - **[inverter-monitoring](https://github.com/4alvit/inverter-monitoring)** — Generation data webhook
