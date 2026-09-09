@@ -109,9 +109,11 @@ class InverterControlHook(BaseModel):
     mqtt_port: int = int(os.getenv("MQTT_PORT", "1883"))
     site_id: str = os.getenv("SITE_ID", "default")
     pre_charge_threshold_wh: float = _env_float(
-        "PRE_CHARGE_THRESHOLD_WH", 5000
-    )  # Pre-charge if forecast < this (sized to the site's array)
-    cloudy_horizon_hours: int = 6  # Hours to look ahead for cloudy period
+        "PRE_CHARGE_THRESHOLD_WH", 6000
+    )  # Pre-charge if today's calendar-day forecast < this (Wh)
+    # Deprecated: rolling cloudy horizon no longer drives the trigger.
+    # Kept for backward-compatible MQTT consumers; payload uses 24.
+    cloudy_horizon_hours: int = 24
     tou_start_hour: int | None = _env_int_opt(
         "TOU_EXPENSIVE_START_HOUR"
     )  # Suppress pre-charge during expensive TOU window
@@ -291,37 +293,43 @@ async def inverter_control_hook_node(state: WorkflowState) -> WorkflowState:
         state.completed_steps.append("inverter_control_hook")
         return state
 
-    # Check for cloudy period in near future (exclude past points; the weather
-    # fetch includes past_hours=1)
-    now = datetime.now(UTC)
-    horizon_end = now + timedelta(hours=hook.cloudy_horizon_hours)
-    near_future = [p for p in state.final_forecast.points if now <= p.timestamp <= horizon_end]
-
-    if near_future:
-        total_near_energy = sum(p.energy_wh for p in near_future)
-        if total_near_energy < hook.pre_charge_threshold_wh:
-            if (
-                hook.tou_start_hour is not None
-                and hook.tou_end_hour is not None
-                and _in_tou_window(hook.tou_start_hour, hook.tou_end_hour)
-            ):
-                state.warnings.append(
-                    f"Pre-charge suppressed: expensive grid window "
-                    f"({hook.tou_start_hour}:00-{hook.tou_end_hour}:00)"
-                )
-            else:
-                state.warnings.append(
-                    f"Low generation forecast ({total_near_energy:.0f} Wh in {hook.cloudy_horizon_hours}h) - "
-                    f"triggering pre-charge"
-                )
-                await _trigger_pre_charge(hook, total_near_energy)
-
     # Publish today/tomorrow kWh summary every run for dashboard display
     panel = (
         state.site_config.panel_by_id(state.panel_id)
         if state.panel_id
         else state.site_config.panels[0]
     )
+
+    # Pre-charge only after 00:01 local (panel TZ), when today's calendar-day
+    # forecast total is below threshold. Do not use a rolling N-hour window.
+    try:
+        local_tz = ZoneInfo(panel.timezone)
+    except Exception:
+        local_tz = UTC
+    now_local = datetime.now(UTC).astimezone(local_tz)
+    after_midnight_gate = now_local.hour > 0 or now_local.minute >= 1
+
+    daily = _daily_kwh_by_date(state.final_forecast.points, panel.timezone)
+    today_key = now_local.strftime("%Y-%m-%d")
+    today_kwh = daily.get(today_key, 0.0)
+    today_wh = today_kwh * 1000.0
+
+    if after_midnight_gate and today_wh < hook.pre_charge_threshold_wh:
+        if (
+            hook.tou_start_hour is not None
+            and hook.tou_end_hour is not None
+            and _in_tou_window(hook.tou_start_hour, hook.tou_end_hour)
+        ):
+            state.warnings.append(
+                f"Pre-charge suppressed: expensive grid window "
+                f"({hook.tou_start_hour}:00-{hook.tou_end_hour}:00)"
+            )
+        else:
+            state.warnings.append(
+                f"Low generation forecast ({today_wh:.0f} Wh for today) - triggering pre-charge"
+            )
+            await _trigger_pre_charge(hook, today_wh)
+
     await _post_daily_forecast(hook, state.final_forecast, panel.timezone)
 
     state.completed_steps.append("inverter_control_hook")
@@ -404,7 +412,9 @@ async def _trigger_pre_charge(hook: InverterControlHook, forecast_energy_wh: flo
         "trigger": "low_solar_forecast",
         "forecast_energy_wh": forecast_energy_wh,
         "threshold_wh": hook.pre_charge_threshold_wh,
-        "horizon_hours": hook.cloudy_horizon_hours,
+        "horizon_hours": 24,
+        "horizon": "next_day",
+        "day": "today",
     }
     msg_payload = json.dumps(payload)
     try:

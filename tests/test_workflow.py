@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from solar_forecast.config import PanelConfig, SiteConfig
+from solar_forecast.model import ForecastMethod, ForecastPoint, GenerationForecast
 from solar_forecast.weather import WeatherForecast, WeatherHourly
 from solar_forecast.workflow import (
     InverterControlHook,
@@ -162,8 +163,8 @@ def test_inverter_control_hook_defaults():
     assert hook.mqtt_broker == "localhost"
     assert hook.mqtt_port == 1883
     assert hook.site_id == "default"
-    assert hook.pre_charge_threshold_wh == 5000
-    assert hook.cloudy_horizon_hours == 6
+    assert hook.pre_charge_threshold_wh == 6000
+    assert hook.cloudy_horizon_hours == 24
 
 
 @pytest.mark.asyncio
@@ -261,31 +262,50 @@ async def test_inverter_control_hook_node_disabled():
     assert len(result.warnings) == 0  # No warning when disabled
 
 
-@pytest.mark.asyncio
-async def test_inverter_control_hook_node_triggers_precharge():
-    """Test inverter control hook triggers pre-charge warning."""
-    site = create_test_site()
-
-    from solar_forecast.model import ForecastMethod, ForecastPoint, GenerationForecast
-
-    # Low energy forecast to trigger pre-charge
-    near_future_time = datetime.now(UTC) + timedelta(hours=3)
-    mock_forecast = GenerationForecast(
+def _forecast_for_day(energy_wh: float, day: datetime) -> GenerationForecast:
+    ts = day.replace(hour=12, minute=0, second=0, microsecond=0)
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=UTC)
+    return GenerationForecast(
         site_id="test-site",
         panel_id="test-1",
-        forecast_horizon_hours=6,
+        forecast_horizon_hours=24,
         points=[
             ForecastPoint(
-                timestamp=near_future_time,
-                energy_wh=1000,  # Low energy
-                power_w=1000,
-                confidence_lower=800,
-                confidence_upper=1200,
+                timestamp=ts,
+                energy_wh=energy_wh,
+                power_w=energy_wh,
+                confidence_lower=0,
+                confidence_upper=energy_wh,
                 method=ForecastMethod.ENSEMBLE,
             )
         ],
         method=ForecastMethod.ENSEMBLE,
     )
+
+
+def _fixed_now(utc_dt: datetime):
+    """Patch workflow.datetime.now so now(UTC) returns utc_dt."""
+
+    class _DatetimeProxy:
+        def __getattr__(self, name):
+            return getattr(datetime, name)
+
+        def now(self, tz=None):
+            if tz is None:
+                return utc_dt.replace(tzinfo=None) if utc_dt.tzinfo else utc_dt
+            return utc_dt.astimezone(tz) if utc_dt.tzinfo else utc_dt.replace(tzinfo=tz)
+
+    return _DatetimeProxy()
+
+
+@pytest.mark.asyncio
+async def test_inverter_control_hook_node_triggers_precharge():
+    """After 00:01 local, today < threshold triggers pre-charge."""
+    site = create_test_site()
+    # 2026-09-09 10:00 UTC == after 00:01 in panel TZ (UTC)
+    fixed = datetime(2026, 9, 9, 10, 0, tzinfo=UTC)
+    mock_forecast = _forecast_for_day(1500, fixed)  # 1.5 kWh < 6.0
 
     state = WorkflowState(
         site_config=site,
@@ -294,11 +314,10 @@ async def test_inverter_control_hook_node_triggers_precharge():
     )
 
     with patch("solar_forecast.workflow.InverterControlHook") as mock_hook_class:
-        # Default hook has pre_charge_threshold_wh=5000, cloudy_horizon_hours=6
         mock_hook = InverterControlHook(
             enabled=True,
-            pre_charge_threshold_wh=5000,
-            cloudy_horizon_hours=6,
+            pre_charge_threshold_wh=6000,
+            cloudy_horizon_hours=24,
             mqtt_broker="localhost",
             mqtt_port=1883,
             site_id="test-site",
@@ -306,6 +325,7 @@ async def test_inverter_control_hook_node_triggers_precharge():
         mock_hook_class.return_value = mock_hook
 
         with (
+            patch("solar_forecast.workflow.datetime", _fixed_now(fixed)),
             patch("solar_forecast.workflow._trigger_pre_charge") as mock_precharge,
             patch("solar_forecast.workflow._post_daily_forecast") as mock_post,
         ):
@@ -313,10 +333,116 @@ async def test_inverter_control_hook_node_triggers_precharge():
             result = await inverter_control_hook_node(state)
 
     assert "inverter_control_hook" in result.completed_steps
-    # Should add warning about low generation
     assert len(result.warnings) > 0
     assert "pre-charge" in result.warnings[0].lower()
     assert mock_precharge.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_inverter_control_hook_no_trigger_before_0001():
+    """Before 00:01 local, never trigger even if today forecast is low."""
+    site = create_test_site()
+    fixed = datetime(2026, 9, 9, 0, 0, 30, tzinfo=UTC)  # 00:00:30 < 00:01
+    mock_forecast = _forecast_for_day(500, fixed)
+
+    state = WorkflowState(
+        site_config=site,
+        panel_id="test-1",
+        final_forecast=mock_forecast,
+    )
+
+    with patch("solar_forecast.workflow.InverterControlHook") as mock_hook_class:
+        mock_hook = InverterControlHook(
+            enabled=True,
+            pre_charge_threshold_wh=6000,
+            mqtt_broker="localhost",
+            mqtt_port=1883,
+            site_id="test-site",
+        )
+        mock_hook_class.return_value = mock_hook
+
+        with (
+            patch("solar_forecast.workflow.datetime", _fixed_now(fixed)),
+            patch("solar_forecast.workflow._trigger_pre_charge") as mock_precharge,
+            patch("solar_forecast.workflow._post_daily_forecast"),
+        ):
+            result = await inverter_control_hook_node(state)
+
+    pre_charge_warnings = [w for w in result.warnings if "pre-charge" in w.lower()]
+    assert not pre_charge_warnings
+    assert mock_precharge.call_count == 0
+
+
+@pytest.mark.asyncio
+async def test_inverter_control_hook_no_trigger_when_today_above_threshold():
+    """After 00:01, today >= threshold does not trigger."""
+    site = create_test_site()
+    fixed = datetime(2026, 9, 9, 10, 0, tzinfo=UTC)
+    mock_forecast = _forecast_for_day(7000, fixed)  # 7.0 kWh >= 6.0
+
+    state = WorkflowState(
+        site_config=site,
+        panel_id="test-1",
+        final_forecast=mock_forecast,
+    )
+
+    with patch("solar_forecast.workflow.InverterControlHook") as mock_hook_class:
+        mock_hook = InverterControlHook(
+            enabled=True,
+            pre_charge_threshold_wh=6000,
+            mqtt_broker="localhost",
+            mqtt_port=1883,
+            site_id="test-site",
+        )
+        mock_hook_class.return_value = mock_hook
+
+        with (
+            patch("solar_forecast.workflow.datetime", _fixed_now(fixed)),
+            patch("solar_forecast.workflow._trigger_pre_charge") as mock_precharge,
+            patch("solar_forecast.workflow._post_daily_forecast"),
+        ):
+            result = await inverter_control_hook_node(state)
+
+    pre_charge_warnings = [w for w in result.warnings if "pre-charge" in w.lower()]
+    assert not pre_charge_warnings
+    assert mock_precharge.call_count == 0
+
+
+@pytest.mark.asyncio
+async def test_inverter_control_hook_tou_suppression():
+    """TOU expensive window still suppresses pre-charge."""
+    site = create_test_site()
+    fixed = datetime(2026, 9, 9, 16, 0, tzinfo=UTC)
+    mock_forecast = _forecast_for_day(1000, fixed)
+
+    state = WorkflowState(
+        site_config=site,
+        panel_id="test-1",
+        final_forecast=mock_forecast,
+    )
+
+    with patch("solar_forecast.workflow.InverterControlHook") as mock_hook_class:
+        mock_hook = InverterControlHook(
+            enabled=True,
+            pre_charge_threshold_wh=6000,
+            tou_start_hour=15,
+            tou_end_hour=24,
+            mqtt_broker="localhost",
+            mqtt_port=1883,
+            site_id="test-site",
+        )
+        mock_hook_class.return_value = mock_hook
+
+        with (
+            patch("solar_forecast.workflow.datetime", _fixed_now(fixed)),
+            patch("solar_forecast.workflow._in_tou_window", return_value=True),
+            patch("solar_forecast.workflow._trigger_pre_charge") as mock_precharge,
+            patch("solar_forecast.workflow._post_daily_forecast"),
+        ):
+            result = await inverter_control_hook_node(state)
+
+    assert any("suppressed" in w.lower() for w in result.warnings)
+    assert mock_precharge.call_count == 0
 
 
 @pytest.mark.asyncio
@@ -442,26 +568,35 @@ async def test_train_model_node_persists_trained_model():
 
 
 @pytest.mark.asyncio
-async def test_inverter_control_hook_ignores_past_points():
-    """Pre-charge must not count already-past forecast points."""
+async def test_inverter_control_hook_ignores_other_day_points():
+    """Points from other calendar days do not inflate/deflate today's total."""
     from solar_forecast.model import ForecastMethod, ForecastPoint, GenerationForecast
 
     site = create_test_site()
-
-    past_time = datetime.now(UTC) - timedelta(hours=1)
+    fixed = datetime(2026, 9, 9, 10, 0, tzinfo=UTC)
+    # Yesterday-only energy: today's calendar total is 0 → would trigger;
+    # add today's 8 kWh so threshold is met and other-day energy is ignored.
     mock_forecast = GenerationForecast(
         site_id="test-site",
         panel_id="test-1",
-        forecast_horizon_hours=6,
+        forecast_horizon_hours=48,
         points=[
             ForecastPoint(
-                timestamp=past_time,
-                energy_wh=0,
-                power_w=0,
+                timestamp=datetime(2026, 9, 8, 12, 0, tzinfo=UTC),
+                energy_wh=500,
+                power_w=500,
                 confidence_lower=0,
-                confidence_upper=0,
+                confidence_upper=500,
                 method=ForecastMethod.ENSEMBLE,
-            )
+            ),
+            ForecastPoint(
+                timestamp=datetime(2026, 9, 9, 12, 0, tzinfo=UTC),
+                energy_wh=8000,
+                power_w=8000,
+                confidence_lower=0,
+                confidence_upper=8000,
+                method=ForecastMethod.ENSEMBLE,
+            ),
         ],
         method=ForecastMethod.ENSEMBLE,
     )
@@ -475,19 +610,24 @@ async def test_inverter_control_hook_ignores_past_points():
     with patch("solar_forecast.workflow.InverterControlHook") as mock_hook_class:
         mock_hook = InverterControlHook(
             enabled=True,
-            pre_charge_threshold_wh=5000,
-            cloudy_horizon_hours=6,
+            pre_charge_threshold_wh=6000,
+            cloudy_horizon_hours=24,
             mqtt_broker="localhost",
             mqtt_port=1883,
             site_id="test-site",
         )
         mock_hook_class.return_value = mock_hook
 
-        with patch("solar_forecast.workflow._post_daily_forecast"):
+        with (
+            patch("solar_forecast.workflow.datetime", _fixed_now(fixed)),
+            patch("solar_forecast.workflow._trigger_pre_charge") as mock_precharge,
+            patch("solar_forecast.workflow._post_daily_forecast"),
+        ):
             result = await inverter_control_hook_node(state)
 
     pre_charge_warnings = [w for w in result.warnings if "pre-charge" in w.lower()]
     assert not pre_charge_warnings
+    assert mock_precharge.call_count == 0
 
 
 def test_daily_kwh_by_date_utc():
