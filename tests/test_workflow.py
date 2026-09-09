@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from solar_forecast.config import PanelConfig, SiteConfig
+from solar_forecast.model import ForecastMethod, ForecastPoint, GenerationForecast
 from solar_forecast.weather import WeatherForecast, WeatherHourly
 from solar_forecast.workflow import (
     InverterControlHook,
@@ -261,9 +262,7 @@ async def test_inverter_control_hook_node_disabled():
     assert len(result.warnings) == 0  # No warning when disabled
 
 
-def _forecast_for_day(energy_wh: float, day: datetime) -> "GenerationForecast":
-    from solar_forecast.model import ForecastMethod, ForecastPoint, GenerationForecast
-
+def _forecast_for_day(energy_wh: float, day: datetime) -> GenerationForecast:
     ts = day.replace(hour=12, minute=0, second=0, microsecond=0)
     if ts.tzinfo is None:
         ts = ts.replace(tzinfo=UTC)
