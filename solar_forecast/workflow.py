@@ -326,8 +326,7 @@ async def inverter_control_hook_node(state: WorkflowState) -> WorkflowState:
             )
         else:
             state.warnings.append(
-                f"Low generation forecast ({today_wh:.0f} Wh for today) - "
-                f"triggering pre-charge"
+                f"Low generation forecast ({today_wh:.0f} Wh for today) - triggering pre-charge"
             )
             await _trigger_pre_charge(hook, today_wh)
 
