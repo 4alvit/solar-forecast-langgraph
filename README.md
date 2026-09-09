@@ -179,8 +179,8 @@ sequenceDiagram
     WF->>FC: Generate 48h forecast
     FC->>WF: Forecast points with confidence
     WF->>CB: Publish N/{site}/solar_forecast/forecast_json (retain=True)
-    WF->>WF: Analyze next 6h total energy
-    alt Low generation (< threshold in 6h)
+    WF->>WF: After 00:01 local, compare today's calendar-day kWh to threshold
+    alt Low generation (< threshold for today)
         WF->>CB: Publish N/{site}/solar_forecast/pre_charge_request (retain=False)
         CB->>IC: Deliver pre-charge request
         IC->>IC: Increase battery target SoC
@@ -192,7 +192,7 @@ Topics published:
 | Topic | retain | Payload |
 |-------|--------|---------|
 | `N/{site_id}/solar_forecast/forecast_json` | True | Daily kWh summary (`today_kwh`, `tomorrow_kwh`) |
-| `N/{site_id}/solar_forecast/pre_charge_request` | False | Pre-charge trigger with threshold and horizon |
+| `N/{site_id}/solar_forecast/pre_charge_request` | False | Pre-charge trigger for low **today** forecast (`horizon_hours=24`, `day=today`) |
 
 Environment variables:
 ```bash
@@ -200,7 +200,7 @@ INVERTER_CONTROL_ENABLED=true          # Enable the hook
 MQTT_BROKER=localhost                # Cerbo GX MQTT broker host
 MQTT_PORT=1883                       # MQTT port
 SITE_ID=default                      # Site identifier used in topic paths
-PRE_CHARGE_THRESHOLD_WH=5000         # Pre-charge if forecast < this (Wh in cloudy_horizon_hours)
+PRE_CHARGE_THRESHOLD_WH=6000         # Pre-charge if today's calendar-day forecast < this (Wh)
 TOU_EXPENSIVE_START_HOUR=22          # Optional: suppress pre-charge during expensive grid window
 TOU_EXPENSIVE_END_HOUR=6
 ```
