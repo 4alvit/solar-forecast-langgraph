@@ -89,11 +89,11 @@ def _env_float(name: str, default: float) -> float:
         return default
 
 
-def _in_tou_window(start_hour: int, end_hour: int) -> bool:
-    """True while local time is inside [start_hour, end_hour); wraps midnight."""
+def _in_tou_window(start_hour: int, end_hour: int, now_local: datetime) -> bool:
+    """True while panel time is inside [start_hour, end_hour); wraps midnight."""
     if start_hour < 0 or end_hour < 0 or start_hour == end_hour:
         return False
-    hour = datetime.now().astimezone().hour  # local wall-clock hour (container TZ)
+    hour = now_local.hour
     if start_hour < end_hour:
         return start_hour <= hour < end_hour
     return hour >= start_hour or hour < end_hour  # wraps midnight
@@ -318,7 +318,7 @@ async def inverter_control_hook_node(state: WorkflowState) -> WorkflowState:
         if (
             hook.tou_start_hour is not None
             and hook.tou_end_hour is not None
-            and _in_tou_window(hook.tou_start_hour, hook.tou_end_hour)
+            and _in_tou_window(hook.tou_start_hour, hook.tou_end_hour, now_local)
         ):
             state.warnings.append(
                 f"Pre-charge suppressed: expensive grid window "

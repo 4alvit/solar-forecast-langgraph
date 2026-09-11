@@ -205,6 +205,13 @@ TOU_EXPENSIVE_START_HOUR=22          # Optional: suppress pre-charge during expe
 TOU_EXPENSIVE_END_HOUR=6
 ```
 
+The expensive tariff window uses the selected panel's `timezone`, including its
+daylight-saving rules. The container's `TZ` does not change this decision. Start
+hours are inclusive and end hours are exclusive; `22` to `6` spans midnight, and
+an end hour of `24` ends at midnight. For example, a panel in `Europe/Amsterdam`
+suppresses pre-charge from 22:00 to 06:00 Amsterdam time even when the container
+runs in UTC. Forecast publication continues while pre-charge is suppressed.
+
 ---
 
 ## Accuracy Tracking
