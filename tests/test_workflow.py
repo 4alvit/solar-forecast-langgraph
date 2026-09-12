@@ -1,7 +1,10 @@
 """Tests for workflow module."""
 
+import os
+import time
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, patch
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -409,11 +412,29 @@ async def test_inverter_control_hook_no_trigger_when_today_above_threshold():
 
 
 @pytest.mark.asyncio
-async def test_inverter_control_hook_tou_suppression():
-    """TOU expensive window still suppresses pre-charge."""
+@pytest.mark.parametrize(
+    ("instant", "start_hour", "end_hour", "suppressed"),
+    [
+        ("2026-09-09T19:59:00+00:00", 22, 6, False),
+        ("2026-09-09T20:00:00+00:00", 22, 6, True),
+        ("2026-09-10T03:59:00+00:00", 22, 6, True),
+        ("2026-09-10T04:00:00+00:00", 22, 6, False),
+        ("2026-09-09T12:59:00+00:00", 15, 24, False),
+        ("2026-09-09T13:00:00+00:00", 15, 24, True),
+        ("2026-09-09T22:01:00+00:00", 15, 24, False),
+        ("2026-01-09T21:00:00+00:00", 22, 6, True),
+        ("2026-10-25T00:30:00+00:00", 22, 6, True),
+        ("2026-10-25T01:30:00+00:00", 22, 6, True),
+    ],
+)
+async def test_inverter_control_hook_tou_uses_panel_timezone(
+    instant, start_hour, end_hour, suppressed
+):
+    """Tariff boundaries use panel time, including DST, even in a UTC container."""
     site = create_test_site()
-    fixed = datetime(2026, 9, 9, 16, 0, tzinfo=UTC)
-    mock_forecast = _forecast_for_day(1000, fixed)
+    site.panels[0].timezone = "Europe/Amsterdam"
+    fixed = datetime.fromisoformat(instant)
+    mock_forecast = _forecast_for_day(1000, fixed.astimezone(ZoneInfo("Europe/Amsterdam")))
 
     state = WorkflowState(
         site_config=site,
@@ -425,24 +446,32 @@ async def test_inverter_control_hook_tou_suppression():
         mock_hook = InverterControlHook(
             enabled=True,
             pre_charge_threshold_wh=6000,
-            tou_start_hour=15,
-            tou_end_hour=24,
+            tou_start_hour=start_hour,
+            tou_end_hour=end_hour,
             mqtt_broker="localhost",
             mqtt_port=1883,
             site_id="test-site",
         )
         mock_hook_class.return_value = mock_hook
 
-        with (
-            patch("solar_forecast.workflow.datetime", _fixed_now(fixed)),
-            patch("solar_forecast.workflow._in_tou_window", return_value=True),
-            patch("solar_forecast.workflow._trigger_pre_charge") as mock_precharge,
-            patch("solar_forecast.workflow._post_daily_forecast"),
-        ):
-            result = await inverter_control_hook_node(state)
+        try:
+            with (
+                patch.dict(os.environ, {"TZ": "UTC"}),
+                patch("solar_forecast.workflow.datetime", _fixed_now(fixed)),
+                patch("solar_forecast.workflow._trigger_pre_charge") as mock_precharge,
+                patch("solar_forecast.workflow._post_daily_forecast") as mock_post,
+            ):
+                time.tzset()
+                result = await inverter_control_hook_node(state)
+        finally:
+            time.tzset()
 
-    assert any("suppressed" in w.lower() for w in result.warnings)
-    assert mock_precharge.call_count == 0
+    assert any("suppressed" in w.lower() for w in result.warnings) is suppressed
+    if suppressed:
+        mock_precharge.assert_not_awaited()
+    else:
+        mock_precharge.assert_awaited_once_with(mock_hook, 1000)
+    mock_post.assert_awaited_once_with(mock_hook, mock_forecast, "Europe/Amsterdam")
 
 
 @pytest.mark.asyncio
