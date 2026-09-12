@@ -1,84 +1,43 @@
 name: CI
-
-on:
-  push:
-    branches: [main]
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - '**.json'
-    tags: ['v*']
-  pull_request:
-    branches: ['**']
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - '**.json'
 permissions:
   contents: read
-
 jobs:
   ci:
     name: CI
-    uses: victron-venus/venus-os-ci-toolkit/.github/workflows/python-ci.yml@5b18667880c7a0154b7c7e6686042eff5f47cdb7
-    with:
-      python-version: '3.11'
-
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+    - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+      with:
+        python-version: '3.12'
+    - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
+      with:
+        version: 0.12.7
+    - run: bash scripts/ci.sh
   validate-config:
     runs-on: ubuntu-latest
     steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
-        with:
-          egress-policy: audit
-
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: '3.11'
-
-      - name: Validate config syntax
-        run: python -m py_compile site_config.example.py
-
-      - name: Check config has no real values
-        run: |
-          if grep -E '(token|password|secret|key|api_key)\s*=\s*["\x27][^"\x27]{8,}' site_config.example.py | grep -v 'your_'; then
-            echo "ERROR: site_config.example.py may contain real values"
-            exit 1
-          fi
-          echo "OK: site_config.example.py looks like a template"
-
-  publish-release:
-    needs: [ci, validate-config]
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      id-token: write
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: '3.11'
-
-      - name: Install build dependencies
-        run: pip install --only-binary ':all:' build
-
-      - name: Build package
-        run: python -m build
-
-      - name: Publish package to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          skip_existing: true
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64
-        with:
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Harden the runner (Audit all outbound calls)
+      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1
+      with:
+        egress-policy: audit
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+    - name: Set up Python
+      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+      with:
+        python-version: '3.11'
+    - name: Validate config syntax
+      run: python -m py_compile site_config.example.py
+    - name: Check config has no real values
+      run: "if grep -E '(token|password|secret|key|api_key)\\s*=\\s*[\"\\x27][^\"\\x27]{8,}' site_config.example.py\
+        \ | grep -v 'your_'; then\n  echo \"ERROR: site_config.example.py may contain real values\"\n  exit 1\n\
+        fi\necho \"OK: site_config.example.py looks like a template\"\n"
+'on':
+  push:
+    branches:
+    - main
+  pull_request:
+    branches:
+    - '**'
+  workflow_call: {}

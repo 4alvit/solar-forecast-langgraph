@@ -756,3 +756,13 @@ async def test_post_daily_forecast_payload():
     payload = json.loads(call_kwargs["payload"])
     assert payload["site_id"] == "test-site"
     assert "today_kwh" in payload or "tomorrow_kwh" in payload
+
+
+@pytest.mark.asyncio
+async def test_fetch_weather_unknown_panel_records_error_without_request():
+    state = WorkflowState(site_config=create_test_site(), panel_id="missing-panel")
+    with patch("solar_forecast.workflow.OpenMeteoClient") as client:
+        client.return_value.fetch_forecast = AsyncMock()
+        result = await fetch_weather_node(state)
+    assert result.errors == ["Weather fetch failed: Unknown panel ID: missing-panel"]
+    client.return_value.fetch_forecast.assert_not_called()

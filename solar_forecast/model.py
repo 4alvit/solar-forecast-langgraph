@@ -9,7 +9,7 @@ from enum import Enum
 
 import numpy as np
 import pandas as pd
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, SecretStr
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import StandardScaler
 
@@ -74,7 +74,7 @@ class SolarPosition:
 class PhysicalModel:
     """Physical solar generation model (clear-sky + cloud adjustment)."""
 
-    def __init__(self, panel: PanelConfig):
+    def __init__(self, panel: PanelConfig) -> None:
         self.panel = panel
 
     def calculate_solar_position(self, dt: datetime, lat: float, lon: float) -> SolarPosition:
@@ -194,7 +194,7 @@ class PhysicalModel:
 class StatisticalModel:
     """Statistical baseline model using historical data."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.scaler = StandardScaler()
         self.model: LinearRegression | None = None
         self.feature_names: list[str] = []
@@ -262,7 +262,7 @@ class StatisticalModel:
 
     def predict(self, weather: WeatherForecast) -> np.ndarray:
         """Predict generation for weather forecast."""
-        if not self.is_fitted:
+        if not self.is_fitted or self.model is None:
             raise RuntimeError("Model not fitted. Call fit() first.")
 
         X = self.prepare_features(weather)
@@ -278,10 +278,14 @@ class ForecastModel:
         self,
         site_config: SiteConfig,
         panel_id: str | None = None,
-    ):
+    ) -> None:
         self.site_config = site_config
+        panels: list[PanelConfig]
         if panel_id:
-            panels = [site_config.panel_by_id(panel_id)]
+            panel = site_config.panel_by_id(panel_id)
+            if panel is None:
+                raise ValueError(f"Unknown panel ID: {panel_id}")
+            panels = [panel]
         else:
             panels = site_config.panels
         self.physicals = [PhysicalModel(p) for p in panels]
@@ -393,7 +397,7 @@ async def enhance_with_llm(
     # Prepare context for LLM
     context = _build_llm_context(base_forecast, weather, site_config, panel_config, recent_actuals)
 
-    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0, api_key=api_key)
+    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0, api_key=SecretStr(api_key))
 
     system_prompt = """You are a solar forecasting expert. Analyze the provided weather forecast,
     solar panel configuration, and historical generation data to refine the base forecast.
@@ -416,6 +420,8 @@ async def enhance_with_llm(
     import json
 
     try:
+        if not isinstance(response.content, str):
+            raise TypeError("Expected text content from the forecast model")
         adjustment = json.loads(response.content)
     except json.JSONDecodeError:
         return base_forecast

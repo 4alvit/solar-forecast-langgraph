@@ -5,13 +5,15 @@ from __future__ import annotations
 import json
 import logging
 import os
-from datetime import UTC, datetime, timedelta
-from typing import Any, Literal
+from datetime import UTC, datetime, timedelta, tzinfo
+from types import ModuleType
+from typing import TYPE_CHECKING, Any, Literal
 from zoneinfo import ZoneInfo
 
 from langgraph.graph import END, StateGraph
 from pydantic import BaseModel, Field
 
+mqtt_publish: ModuleType | None
 try:
     import paho.mqtt.publish as mqtt_publish
 
@@ -38,6 +40,10 @@ class WorkflowState(BaseModel):
     """State for the forecasting workflow."""
 
     model_config = {"extra": "allow"}  # Allow dynamic fields
+
+    if TYPE_CHECKING:
+        # Runtime scratch state is attached only after successful training.
+        _trained_model: ForecastModel | None
 
     # Input parameters
     site_config: SiteConfig
@@ -131,6 +137,8 @@ async def fetch_weather_node(state: WorkflowState) -> WorkflowState:
 
     client = OpenMeteoClient()
     try:
+        if panel is None:
+            raise ValueError(f"Unknown panel ID: {state.panel_id}")
         forecast = await client.fetch_forecast(
             latitude=panel.latitude,
             longitude=panel.longitude,
@@ -154,6 +162,7 @@ async def fetch_history_node(state: WorkflowState) -> WorkflowState:
     )
 
     # InfluxDB backend when configured; legacy inverter-monitoring API otherwise
+    loader: InfluxDBGenerationLoader | InverterMonitoringLoader
     if os.getenv("INFLUX_URL"):
         loader = InfluxDBGenerationLoader()
     else:
@@ -200,6 +209,8 @@ async def train_model_node(state: WorkflowState) -> WorkflowState:
     # Train on PAST weather matched to generation history; the forecast weather
     # only covers future hours so joining against it always came up empty.
     try:
+        if panel is None:
+            raise ValueError(f"Unknown panel ID: {state.panel_id}")
         client = OpenMeteoClient()
         past_weather = await client.fetch_forecast(
             latitude=panel.latitude,
@@ -264,6 +275,8 @@ async def enhance_forecast_node(state: WorkflowState) -> WorkflowState:
     )
 
     try:
+        if panel is None or state.weather_forecast is None:
+            raise ValueError("Panel and weather are required for forecast enhancement")
         enhanced = await enhance_with_llm(
             state.base_forecast,
             state.weather_forecast,
@@ -300,6 +313,9 @@ async def inverter_control_hook_node(state: WorkflowState) -> WorkflowState:
         else state.site_config.panels[0]
     )
 
+    if panel is None:
+        raise ValueError(f"Unknown panel ID: {state.panel_id}")
+    local_tz: tzinfo
     # Pre-charge only after 00:01 local (panel TZ), when today's calendar-day
     # forecast total is below threshold. Do not use a rolling N-hour window.
     try:
@@ -338,6 +354,7 @@ async def inverter_control_hook_node(state: WorkflowState) -> WorkflowState:
 
 def _daily_kwh_by_date(points: list, tz_name: str) -> dict[str, float]:
     """Sum forecast energy into kWh totals keyed by local calendar date (YYYY-MM-DD)."""
+    tz: tzinfo
     try:
         tz = ZoneInfo(tz_name)
     except Exception:

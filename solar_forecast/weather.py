@@ -87,7 +87,7 @@ class OpenMeteoClient:
         Raises:
             httpx.HTTPError: On API error after retries
         """
-        params = {
+        params: dict[str, str | int | float] = {
             "latitude": latitude,
             "longitude": longitude,
             "hourly": ",".join(
