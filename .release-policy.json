@@ -23,5 +23,6 @@
   "pypi_assets": [
     "*.whl",
     "solar_forecast_langgraph-*.tar.gz"
-  ]
+  ],
+  "visibility": "public"
 }
