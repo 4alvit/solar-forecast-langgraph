@@ -53,3 +53,9 @@ deploy.sh
 # Force-run script
 run-now.sh
 *.backup
+
+# Local CI/release artifacts
+release-dist/
+.release-download/
+.release-assets/
+.release-evidence/

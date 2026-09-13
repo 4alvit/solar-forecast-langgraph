@@ -632,3 +632,8 @@ def test_statistical_model_fit_past_weather():
     preds = stat.predict(weather)
     assert len(preds) == 48
     assert (preds >= 0).all()
+
+
+def test_forecast_model_rejects_unknown_panel():
+    with pytest.raises(ValueError, match="Unknown panel ID"):
+        ForecastModel(create_test_site(), panel_id="missing-panel")

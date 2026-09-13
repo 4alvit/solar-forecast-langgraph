@@ -8,7 +8,7 @@ import os
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pandas as pd
 from pydantic import BaseModel, Field
@@ -76,7 +76,7 @@ class HistoricalData(BaseModel):
         for idx, row in resampled.iterrows():
             records.append(
                 GenerationRecord(
-                    timestamp=idx.to_pydatetime(),
+                    timestamp=cast(pd.Timestamp, idx).to_pydatetime(),
                     site_id=row["site_id"],
                     panel_id=row["panel_id"],
                     energy_wh=row["energy_wh"],

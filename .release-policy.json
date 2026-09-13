@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "repository": "4alvit/solar-forecast-langgraph",
+  "mode": "release",
+  "default_branch": "main",
+  "validation_workflows": [
+    "ci.yml",
+    "codeql.yml",
+    "release-security.yml"
+  ],
+  "artifact_pattern": "release-assets*",
+  "version_file": "pyproject.toml",
+  "local_checks": [
+    "bash scripts/ci.sh",
+    "bash scripts/ci.sh security"
+  ],
+  "notes": [
+    "The approved wheel/sdist are promoted unchanged to PyPI. OCI registry promotion uses the same verified candidate artifacts."
+  ],
+  "container_assets": {
+    "solar-forecast-langgraph-container.oci.tar": "ghcr.io/4alvit/solar-forecast-langgraph"
+  },
+  "pypi_assets": [
+    "*.whl",
+    "solar_forecast_langgraph-*.tar.gz"
+  ],
+  "visibility": "public"
+}
