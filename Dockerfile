@@ -9,8 +9,12 @@ COPY solar_forecast ./solar_forecast
 RUN uv sync --locked --no-dev --no-editable
 ENV PATH="/app/.venv/bin:$PATH"
 
-COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+RUN groupadd --gid 10001 forecast \
+    && useradd --uid 10001 --gid forecast --create-home forecast \
+    && chown forecast:forecast /app
+USER 10001:10001
+
+COPY --chmod=755 docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 # Configuration via environment variables:
 #   INVERTER_CONTROL_URL       - inverter-control webhook base URL (default http://localhost:8081)
