@@ -603,8 +603,7 @@ async def test_inverter_control_hook_ignores_other_day_points():
 
     site = create_test_site()
     fixed = datetime(2026, 9, 9, 10, 0, tzinfo=UTC)
-    # Yesterday-only energy: today's calendar total is 0 → would trigger;
-    # add today's 8 kWh so threshold is met and other-day energy is ignored.
+    # Today's 8 kWh meets the threshold; other-day energy is ignored.
     mock_forecast = GenerationForecast(
         site_id="test-site",
         panel_id="test-1",
@@ -657,6 +656,52 @@ async def test_inverter_control_hook_ignores_other_day_points():
     pre_charge_warnings = [w for w in result.warnings if "pre-charge" in w.lower()]
     assert not pre_charge_warnings
     assert mock_precharge.call_count == 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("day_offset", [None, -1, 1])
+async def test_precharge_requires_points_for_the_panel_local_day(day_offset):
+    """Missing data must not become a zero-generation control request."""
+    site = create_test_site()
+    site.panels[0].timezone = "America/Los_Angeles"
+    # UTC and the panel calendar day deliberately differ.
+    now = datetime(2026, 9, 10, 1, 0, tzinfo=UTC)
+    forecast = _forecast_for_day(0, datetime(2026, 9, 9, 19, 0, tzinfo=UTC))
+    if day_offset is None:
+        forecast.points = []
+    else:
+        forecast.points[0].timestamp += timedelta(days=day_offset)
+    state = WorkflowState(site_config=site, panel_id="test-1", final_forecast=forecast)
+    hook = InverterControlHook(enabled=True, tou_start_hour=None, tou_end_hour=None)
+    with (
+        patch("solar_forecast.workflow.datetime", _fixed_now(now)),
+        patch("solar_forecast.workflow.InverterControlHook", return_value=hook),
+        patch("solar_forecast.workflow._trigger_pre_charge", new_callable=AsyncMock) as trigger,
+        patch("solar_forecast.workflow._post_daily_forecast", new_callable=AsyncMock) as publish,
+    ):
+        result = await inverter_control_hook_node(state)
+    trigger.assert_not_awaited()
+    publish.assert_awaited_once_with(hook, forecast, "America/Los_Angeles")
+    assert "Pre-charge suppressed: today's forecast is unavailable" in result.warnings
+    assert "inverter_control_hook" in result.completed_steps
+
+
+@pytest.mark.asyncio
+async def test_precharge_preserves_a_real_zero_forecast():
+    """A present zero is distinct from an absent local calendar day."""
+    site = create_test_site()
+    now = datetime(2026, 9, 9, 10, 0, tzinfo=UTC)
+    forecast = _forecast_for_day(0, now)
+    state = WorkflowState(site_config=site, panel_id="test-1", final_forecast=forecast)
+    hook = InverterControlHook(enabled=True, tou_start_hour=None, tou_end_hour=None)
+    with (
+        patch("solar_forecast.workflow.datetime", _fixed_now(now)),
+        patch("solar_forecast.workflow.InverterControlHook", return_value=hook),
+        patch("solar_forecast.workflow._trigger_pre_charge", new_callable=AsyncMock) as trigger,
+        patch("solar_forecast.workflow._post_daily_forecast", new_callable=AsyncMock),
+    ):
+        await inverter_control_hook_node(state)
+    trigger.assert_awaited_once_with(hook, 0.0)
 
 
 def test_daily_kwh_by_date_utc():

@@ -327,7 +327,12 @@ async def inverter_control_hook_node(state: WorkflowState) -> WorkflowState:
 
     daily = _daily_kwh_by_date(state.final_forecast.points, panel.timezone)
     today_key = now_local.strftime("%Y-%m-%d")
-    today_kwh = daily.get(today_key, 0.0)
+    if today_key not in daily:
+        state.warnings.append("Pre-charge suppressed: today's forecast is unavailable")
+        await _post_daily_forecast(hook, state.final_forecast, panel.timezone)
+        state.completed_steps.append("inverter_control_hook")
+        return state
+    today_kwh = daily[today_key]
     today_wh = today_kwh * 1000.0
 
     if after_midnight_gate and today_wh < hook.pre_charge_threshold_wh:
