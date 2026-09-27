@@ -188,12 +188,19 @@ sequenceDiagram
     WF->>WF: After 00:01 local, compare today's calendar-day kWh to threshold
     alt Low generation (< threshold for today)
         WF->>CB: Publish N/{site}/solar_forecast/pre_charge_request (retain=False)
-        CB->>IC: Deliver pre-charge request
-        IC->>IC: Increase battery target SoC
+        Note over CB,IC: Delivery adapter and controller safety policy must be configured separately
     end
 ```
 
 Topics published:
+
+The workflow suppresses pre-charge when there are no points for the panel's
+current local calendar day; it still publishes the available daily summary.
+A present zero-generation forecast remains distinct from missing data. MQTT
+publication alone does not prove controller delivery or physical charging.
+Repeated workflow runs can publish repeated requests: the integration must
+establish deduplication and an actuator-side safety gate before enabling
+automatic charging. This workflow does not provide that end-to-end guarantee.
 
 | Topic | retain | Payload |
 |-------|--------|---------|
