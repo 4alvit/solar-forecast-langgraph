@@ -380,7 +380,7 @@ async def _post_daily_forecast(
     forecast: GenerationForecast,
     timezone_name: str,
 ) -> None:
-    """Publish today/tomorrow kWh summary to N/{site}/solar_forecast/forecast_json (retain)."""
+    """Publish today/tomorrow kWh summary to solar_forecast/{site}/forecast_json (retain)."""
     now_local = datetime.now(UTC).astimezone(ZoneInfo(timezone_name))
     daily = _daily_kwh_by_date(forecast.points, timezone_name)
     today_key = now_local.strftime("%Y-%m-%d")
@@ -400,7 +400,7 @@ async def _post_daily_forecast(
         logger.warning("paho-mqtt not available; skipping forecast publish")
         return
 
-    topic = f"N/{hook.site_id}/solar_forecast/forecast_json"
+    topic = f"solar_forecast/{hook.site_id}/forecast_json"
     msg_payload = json.dumps(payload)
     try:
         deliver(hook.mqtt_broker, hook.mqtt_port, topic, payload, retain=True)
@@ -425,7 +425,7 @@ async def _trigger_pre_charge(
     hook: InverterControlHook, forecast_energy_wh: float, local_date: str
 ) -> dict:
     """One decision per site/calendar day, QoS1 plus application acknowledgement."""
-    topic = f"N/{hook.site_id}/solar_forecast/pre_charge_request"
+    topic = f"solar_forecast/{hook.site_id}/pre_charge_request"
     request_id = hashlib.sha256(f"precharge-v1:{hook.site_id}:{local_date}".encode()).hexdigest()
     now = datetime.now(UTC).timestamp()
     payload = {
@@ -442,7 +442,7 @@ async def _trigger_pre_charge(
         "horizon": "next_day",
         "day": "today",
     }
-    ack_topic = f"N/{hook.site_id}/solar_forecast/pre_charge_ack/{request_id}"
+    ack_topic = f"solar_forecast/{hook.site_id}/pre_charge_ack/{request_id}"
     for attempt in range(2):
         try:
             outcome = deliver(hook.mqtt_broker, hook.mqtt_port, topic, payload, ack_topic=ack_topic)

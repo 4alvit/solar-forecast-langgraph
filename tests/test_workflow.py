@@ -797,7 +797,7 @@ async def test_post_daily_forecast_payload():
     assert mock_single.call_args.args[1] == 1883
     assert call_kwargs["retain"] is True
     topic = mock_single.call_args.args[2]
-    assert topic == "N/my-site/solar_forecast/forecast_json"
+    assert topic == "solar_forecast/my-site/forecast_json"
 
     payload = mock_single.call_args.args[3]
     assert payload["site_id"] == "test-site"

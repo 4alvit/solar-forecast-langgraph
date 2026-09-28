@@ -184,10 +184,10 @@ sequenceDiagram
 
     WF->>FC: Generate 48h forecast
     FC->>WF: Forecast points with confidence
-    WF->>CB: Publish N/{site}/solar_forecast/forecast_json (retain=True)
+    WF->>CB: Publish solar_forecast/{site}/forecast_json (retain=True)
     WF->>WF: After 00:01 local, compare today's calendar-day kWh to threshold
     alt Low generation (< threshold for today)
-        WF->>CB: Publish N/{site}/solar_forecast/pre_charge_request (retain=False)
+        WF->>CB: Publish solar_forecast/{site}/pre_charge_request (retain=False)
         Note over CB,IC: Delivery adapter and controller safety policy must be configured separately
     end
 ```
@@ -204,8 +204,8 @@ automatic charging. This workflow does not provide that end-to-end guarantee.
 
 | Topic | retain | Payload |
 |-------|--------|---------|
-| `N/{site_id}/solar_forecast/forecast_json` | True | Daily kWh summary (`today_kwh`, `tomorrow_kwh`) |
-| `N/{site_id}/solar_forecast/pre_charge_request` | False | Pre-charge trigger for low **today** forecast (`horizon_hours=24`, `day=today`) |
+| `solar_forecast/{site_id}/forecast_json` | True | Daily kWh summary (`today_kwh`, `tomorrow_kwh`) |
+| `solar_forecast/{site_id}/pre_charge_request` | False | Pre-charge trigger for low **today** forecast (`horizon_hours=24`, `day=today`) |
 
 Environment variables:
 ```bash
