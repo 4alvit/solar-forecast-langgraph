@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -23,6 +24,7 @@ except Exception:  # pragma: no cover
     MQTT_AVAILABLE = False
 
 from solar_forecast.config import SiteConfig
+from solar_forecast.delivery import deliver
 from solar_forecast.history import (
     HistoricalData,
     InfluxDBGenerationLoader,
@@ -349,7 +351,9 @@ async def inverter_control_hook_node(state: WorkflowState) -> WorkflowState:
             state.warnings.append(
                 f"Low generation forecast ({today_wh:.0f} Wh for today) - triggering pre-charge"
             )
-            await _trigger_pre_charge(hook, today_wh)
+            outcome = await _trigger_pre_charge(hook, today_wh, today_key)
+            if isinstance(outcome, dict):
+                state.warnings.append(f"Pre-charge delivery: {outcome.get('status', 'unknown')}")
 
     await _post_daily_forecast(hook, state.final_forecast, panel.timezone)
 
@@ -399,13 +403,7 @@ async def _post_daily_forecast(
     topic = f"N/{hook.site_id}/solar_forecast/forecast_json"
     msg_payload = json.dumps(payload)
     try:
-        mqtt_publish.single(
-            topic=topic,
-            payload=msg_payload,
-            hostname=hook.mqtt_broker,
-            port=hook.mqtt_port,
-            retain=True,
-        )
+        deliver(hook.mqtt_broker, hook.mqtt_port, topic, payload, retain=True)
         logger.info(
             "Published forecast to %s on %s:%d (retain=True): %s",
             topic,
@@ -423,14 +421,20 @@ async def _post_daily_forecast(
         )
 
 
-async def _trigger_pre_charge(hook: InverterControlHook, forecast_energy_wh: float) -> None:
-    """Publish pre-charge request to N/{site}/solar_forecast/pre_charge_request."""
-    if not MQTT_AVAILABLE or mqtt_publish is None:
-        logger.warning("paho-mqtt not available; skipping pre-charge publish")
-        return
-
+async def _trigger_pre_charge(
+    hook: InverterControlHook, forecast_energy_wh: float, local_date: str
+) -> dict:
+    """One decision per site/calendar day, QoS1 plus application acknowledgement."""
     topic = f"N/{hook.site_id}/solar_forecast/pre_charge_request"
+    request_id = hashlib.sha256(f"precharge-v1:{hook.site_id}:{local_date}".encode()).hexdigest()
+    now = datetime.now(UTC).timestamp()
     payload = {
+        "version": 1,
+        "request_id": request_id,
+        "site_id": hook.site_id,
+        "date": local_date,
+        "issued_at": now,
+        "expires_at": now + 300,
         "trigger": "low_solar_forecast",
         "forecast_energy_wh": forecast_energy_wh,
         "threshold_wh": hook.pre_charge_threshold_wh,
@@ -438,30 +442,15 @@ async def _trigger_pre_charge(hook: InverterControlHook, forecast_energy_wh: flo
         "horizon": "next_day",
         "day": "today",
     }
-    msg_payload = json.dumps(payload)
-    try:
-        mqtt_publish.single(
-            topic=topic,
-            payload=msg_payload,
-            hostname=hook.mqtt_broker,
-            port=hook.mqtt_port,
-            retain=False,
-        )
-        logger.info(
-            "Pre-charge request published to %s on %s:%d: %.0f Wh forecast",
-            topic,
-            hook.mqtt_broker,
-            hook.mqtt_port,
-            forecast_energy_wh,
-        )
-    except Exception as e:
-        logger.warning(
-            "Pre-charge publish to %s:%d topic %s failed: %s",
-            hook.mqtt_broker,
-            hook.mqtt_port,
-            topic,
-            e,
-        )
+    ack_topic = f"N/{hook.site_id}/solar_forecast/pre_charge_ack/{request_id}"
+    for attempt in range(2):
+        try:
+            outcome = deliver(hook.mqtt_broker, hook.mqtt_port, topic, payload, ack_topic=ack_topic)
+            logger.info("Pre-charge controller acknowledgement: %s", outcome)
+            return outcome
+        except (OSError, RuntimeError) as error:
+            logger.warning("Pre-charge delivery attempt %d failed: %s", attempt + 1, error)
+    return {"request_id": request_id, "status": "delivery_failed"}
 
 
 async def finalize_forecast_node(state: WorkflowState) -> WorkflowState:

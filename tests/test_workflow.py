@@ -470,7 +470,9 @@ async def test_inverter_control_hook_tou_uses_panel_timezone(
     if suppressed:
         mock_precharge.assert_not_awaited()
     else:
-        mock_precharge.assert_awaited_once_with(mock_hook, 1000)
+        mock_precharge.assert_awaited_once_with(
+            mock_hook, 1000, fixed.astimezone(ZoneInfo("Europe/Amsterdam")).strftime("%Y-%m-%d")
+        )
     mock_post.assert_awaited_once_with(mock_hook, mock_forecast, "Europe/Amsterdam")
 
 
@@ -701,7 +703,7 @@ async def test_precharge_preserves_a_real_zero_forecast():
         patch("solar_forecast.workflow._post_daily_forecast", new_callable=AsyncMock),
     ):
         await inverter_control_hook_node(state)
-    trigger.assert_awaited_once_with(hook, 0.0)
+    trigger.assert_awaited_once_with(hook, 0.0, now.strftime("%Y-%m-%d"))
 
 
 def test_daily_kwh_by_date_utc():
@@ -786,19 +788,18 @@ async def test_post_daily_forecast_payload():
     )
     hook = InverterControlHook(enabled=True, site_id="my-site")
 
-    with patch("solar_forecast.workflow.mqtt_publish.single") as mock_single:
+    with patch("solar_forecast.workflow.deliver") as mock_single:
         await _post_daily_forecast(hook, forecast, "Europe/Amsterdam")
 
     assert mock_single.call_count == 1
     call_kwargs = mock_single.call_args[1]
-    assert call_kwargs["hostname"] == "localhost"
-    assert call_kwargs["port"] == 1883
+    assert mock_single.call_args.args[0] == "localhost"
+    assert mock_single.call_args.args[1] == 1883
     assert call_kwargs["retain"] is True
-    topic = call_kwargs["topic"]
+    topic = mock_single.call_args.args[2]
     assert topic == "N/my-site/solar_forecast/forecast_json"
-    import json
 
-    payload = json.loads(call_kwargs["payload"])
+    payload = mock_single.call_args.args[3]
     assert payload["site_id"] == "test-site"
     assert "today_kwh" in payload or "tomorrow_kwh" in payload
 
