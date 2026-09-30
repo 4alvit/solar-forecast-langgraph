@@ -6,12 +6,16 @@ import os
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
+from functools import cached_property
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
 from pydantic import BaseModel, Field, SecretStr
-from sklearn.linear_model import LinearRegression
-from sklearn.preprocessing import StandardScaler
+
+if TYPE_CHECKING:
+    from sklearn.linear_model import LinearRegression
+    from sklearn.preprocessing import StandardScaler
 
 from solar_forecast.config import PanelConfig, SiteConfig
 from solar_forecast.weather import WeatherForecast
@@ -195,10 +199,16 @@ class StatisticalModel:
     """Statistical baseline model using historical data."""
 
     def __init__(self) -> None:
-        self.scaler = StandardScaler()
         self.model: LinearRegression | None = None
         self.feature_names: list[str] = []
         self.is_fitted = False
+
+    @cached_property
+    def scaler(self) -> StandardScaler:
+        """Load the statistical stack only when an estimator is actually used."""
+        from sklearn.preprocessing import StandardScaler
+
+        return StandardScaler()
 
     def prepare_features(
         self,
@@ -254,6 +264,8 @@ class StatisticalModel:
         X_scaled = self.scaler.fit_transform(X)
 
         # Fit linear regression
+        from sklearn.linear_model import LinearRegression
+
         self.model = LinearRegression()
         self.model.fit(X_scaled, y)
 
