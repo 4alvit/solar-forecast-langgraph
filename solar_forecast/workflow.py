@@ -223,7 +223,8 @@ async def train_model_node(state: WorkflowState) -> WorkflowState:
             past_days=state.lookback_days,
         )
         hourly_history = state.historical_df.resample("1h").sum(numeric_only=True)
-        model.train(past_weather, hourly_history)
+        # Cancellation may leave this local fit running; publish state only after await.
+        await asyncio.to_thread(model.train, past_weather, hourly_history)
         state._trained_model = model  # persist for generate_forecast_node
         state.completed_steps.append("train_model")
     except Exception as e:
