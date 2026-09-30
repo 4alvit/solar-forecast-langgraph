@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import logging
@@ -403,7 +404,9 @@ async def _post_daily_forecast(
     topic = f"solar_forecast/{hook.site_id}/forecast_json"
     msg_payload = json.dumps(payload)
     try:
-        deliver(hook.mqtt_broker, hook.mqtt_port, topic, payload, retain=True)
+        await asyncio.to_thread(
+            deliver, hook.mqtt_broker, hook.mqtt_port, topic, payload, retain=True
+        )
         logger.info(
             "Published forecast to %s on %s:%d (retain=True): %s",
             topic,
@@ -445,7 +448,11 @@ async def _trigger_pre_charge(
     ack_topic = f"solar_forecast/{hook.site_id}/pre_charge_ack/{request_id}"
     for attempt in range(2):
         try:
-            outcome = deliver(hook.mqtt_broker, hook.mqtt_port, topic, payload, ack_topic=ack_topic)
+            # The synchronous MQTT lifecycle may wait for a controller ACK.
+            # Cancellation stops retries; an in-flight publication may still finish.
+            outcome = await asyncio.to_thread(
+                deliver, hook.mqtt_broker, hook.mqtt_port, topic, payload, ack_topic=ack_topic
+            )
             logger.info("Pre-charge controller acknowledgement: %s", outcome)
             return outcome
         except (OSError, RuntimeError) as error:
