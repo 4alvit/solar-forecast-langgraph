@@ -319,6 +319,11 @@ class ForecastModel:
     ) -> GenerationForecast:
         """Generate forecast using specified method."""
         points = []
+        statistical_predictions = (
+            self.statistical.predict(weather)
+            if self.statistical.is_fitted and weather.hourly
+            else None
+        )
 
         for i, h in enumerate(weather.hourly):
             # Physical model, summed over all (selected) arrays.
@@ -335,16 +340,8 @@ class ForecastModel:
                 physical_power += phys.predict_clear_sky(solar_pos, poa)
 
             # Statistical model (if fitted)
-            if self.statistical.is_fitted:
-                stat_pred = self.statistical.predict(
-                    WeatherForecast(
-                        latitude=weather.latitude,
-                        longitude=weather.longitude,
-                        elevation=weather.elevation,
-                        timezone=weather.timezone,
-                        hourly=[h],
-                    )
-                )[0]
+            if statistical_predictions is not None:
+                stat_pred = statistical_predictions[i]
             else:
                 stat_pred = physical_power
 
