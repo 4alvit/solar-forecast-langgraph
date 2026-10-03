@@ -37,12 +37,38 @@ concurrency:
   group: release-${{ github.repository }}
   cancel-in-progress: false
 jobs:
+  scope:
+    name: Change scope
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.scope.outputs.run }}
+      reason: ${{ steps.scope.outputs.reason }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - id: scope
+        name: Classify documentation and build inputs
+        env:
+          DOCUMENTATION_PATHS: '[]'
+          REQUIRED_PATHS: '[]'
+          FORCE_FULL: 'true'
+        run: |
+          args=()
+          if [[ "$FORCE_FULL" == true ]]; then args+=(--force); fi
+          python3 scripts/change_scope.py "${args[@]}" --documentation-paths-json "$DOCUMENTATION_PATHS" --required-paths-json "$REQUIRED_PATHS"
   prepare:
+    needs: scope
+    if: ${{ needs.scope.outputs.run == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
       channel: ${{ steps.metadata.outputs.channel }}
       version: ${{ steps.metadata.outputs.version }}
+      build: ${{ steps.metadata.outputs.build }}
+      status: ${{ steps.metadata.outputs.status }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -77,15 +103,25 @@ jobs:
               raise SystemExit('Stable requires manual workflow_dispatch')
           if channel in {'rc', 'stable'} and config.get('stable_blockers'):
               raise SystemExit('Stable blocked: ' + '; '.join(config['stable_blockers']))
+          import sys
+          sys.path.insert(0, 'scripts')
+          import release_control as rc
+          closed = rc.closed_push_cycle(rc.GitHub(os.environ['GITHUB_REPOSITORY']), version, kind) if kind == 'push' else None
+          if closed:
+              rc.emit_result(closed)
+              raise SystemExit(0)
           with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
-              output.write(f'channel={channel}\nversion={version}\n')
+              output.write(f'channel={channel}\nversion={version}\nbuild={str(channel != "stable").lower()}\n')
           PY
         env:
           PUBLICATION_ENABLED: ${{ vars.RELEASE_CHANNELS_ENABLED }}
+          GH_TOKEN: ${{ github.token }}
   checks:
     needs: prepare
     if: ${{ needs.prepare.outputs.channel != 'stable' }}
     uses: ./.github/workflows/quality-gate.yml
+    with:
+      force-full: true
     permissions:
       contents: read
       actions: read
@@ -93,8 +129,7 @@ jobs:
   build:
     needs:
       - prepare
-      - checks
-    if: ${{ needs.prepare.outputs.channel != 'stable' }}
+    if: ${{ needs.prepare.outputs.build == 'true' }}
     uses: ./.github/workflows/release-build.yml
     permissions:
       contents: read
@@ -107,7 +142,7 @@ jobs:
       - prepare
       - checks
       - build
-    if: ${{ always() && needs.prepare.outputs.channel != 'stable' }}
+    if: ${{ always() && needs.prepare.result != 'skipped' && needs.prepare.outputs.channel != 'stable' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -117,15 +152,19 @@ jobs:
           python3 - <<'PY'
           import json, os
           results = json.loads(os.environ['RESULTS'])
-          failed = {name: value['result'] for name, value in results.items() if value['result'] != 'success'}
-          if not results or failed:
+          expected = dict.fromkeys(('prepare', 'checks', 'build'), 'success')
+          if results.get('prepare', {}).get('outputs', {}).get('status') == 'version-required':
+              expected['build'] = 'skipped'
+          failed = {name: results.get(name, {}).get('result') for name, result in expected.items() if results.get(name, {}).get('result') != result}
+          if failed:
               raise SystemExit(f'Release blocked: {failed}')
           PY
   candidate:
     needs:
       - prepare
       - gate
-    if: ${{ needs.prepare.outputs.channel != 'stable' && vars.RELEASE_CHANNELS_ENABLED == 'true' }}
+    if: ${{ needs.prepare.outputs.build == 'true' && needs.prepare.outputs.channel != 'stable' && vars.RELEASE_CHANNELS_ENABLED
+      == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -143,6 +182,7 @@ jobs:
           merge-multiple: false
       - run: python3 scripts/release.py collect .release-download .release-assets
       - name: Publish checked candidate
+        id: publication
         env:
           GH_TOKEN: ${{ github.token }}
           CHANNEL: ${{ needs.prepare.outputs.channel }}
@@ -151,6 +191,7 @@ jobs:
           "$VERSION" --sha "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT" --assets
           .release-assets
       - name: Store immutable promotion evidence
+        if: ${{ steps.publication.outputs.status != 'superseded' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-evidence
