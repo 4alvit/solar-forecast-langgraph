@@ -15,19 +15,19 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         persist-credentials: false
-    - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+    - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
       with:
         python-version: '3.12'
-    - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7
+    - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
       with:
         version: 0.12.7
-    - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1
+    - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
       with:
         platforms: amd64,arm64
-    - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
+    - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
     - name: Build exact candidate assets
       env:
         VERSION: ${{ inputs.version }}
@@ -36,7 +36,7 @@ jobs:
     - name: Verify all artifact checksums
       working-directory: release-dist
       run: sha256sum --check SHA256SUMS
-    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: release-assets
         path: release-dist/*
