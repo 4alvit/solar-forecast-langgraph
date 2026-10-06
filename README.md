@@ -325,8 +325,8 @@ Portainer compose should use `ghcr.io/4alvit/solar-forecast-langgraph:${IMAGE_TA
 
 ## Related Projects
 
-- **[inverter-monitoring](https://github.com/4alvit/inverter-monitoring)** — Generation data webhook
-- **[inverter-control](https://github.com/4alvit/inverter-control)** — Grid-zero feed-in control
+- **[inverter-monitoring](https://github.com/victron-venus/inverter-monitoring)** — Generation data webhook
+- **[inverter-control](https://github.com/victron-venus/inverter-control)** — Grid-zero feed-in control
 
 ---
 
