@@ -9,3 +9,13 @@ updates:
     open-pull-requests-limit: 0
     ignore:
       - dependency-name: '*'
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: daily
+
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: daily
