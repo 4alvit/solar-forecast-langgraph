@@ -45,6 +45,7 @@ data/
 *.parquet
 *.csv
 C*.md
+!CONTRIBUTING.md
 site_config.py
 
 # Local deploy script
@@ -59,3 +60,5 @@ release-dist/
 .release-download/
 .release-assets/
 .release-evidence/
+
+!CHANGELOG.md
