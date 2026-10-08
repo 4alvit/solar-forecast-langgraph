@@ -333,3 +333,10 @@ Portainer compose should use `ghcr.io/4alvit/solar-forecast-langgraph:${IMAGE_TA
 ## License
 
 MIT License — see [LICENSE](LICENSE) for details.
+
+## Contributing and security
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development, bug reports and proposals,
+[SECURITY.md](SECURITY.md) for confidential vulnerability reports and deployment
+boundaries, and the [OpenSSF evidence index](docs/openssf-evidence.md) for assessment
+scope and verification.
