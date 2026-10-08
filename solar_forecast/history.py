@@ -13,6 +13,8 @@ from typing import Any, cast
 import pandas as pd
 from pydantic import BaseModel, Field
 
+from .httpx_tls import async_client
+
 
 class GenerationRecord(BaseModel):
     """Single generation data point from inverter monitoring."""
@@ -124,8 +126,6 @@ class InverterMonitoringLoader:
         Returns:
             HistoricalData container
         """
-        import httpx
-
         params = {
             "site_id": site_id,
             "start": start.isoformat(),
@@ -138,7 +138,7 @@ class InverterMonitoringLoader:
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
 
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
+        async with async_client(timeout=self.timeout) as client:
             response = await client.get(
                 f"{self.base_url}/api/v1/generation", params=params, headers=headers
             )
@@ -223,8 +223,6 @@ class InfluxDBGenerationLoader:
     ) -> HistoricalData:
         """Query aggregated PV power and convert to energy records."""
 
-        import httpx
-
         flux = (
             f'from(bucket:"{self.bucket}")\n'
             f"  |> range(start: {int(start.timestamp())}, stop: {int(end.timestamp())})\n"
@@ -234,7 +232,7 @@ class InfluxDBGenerationLoader:
             " fn: mean, createEmpty: false)\n"
         )
 
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
+        async with async_client(timeout=self.timeout) as client:
             response = await client.post(
                 f"{self.url.rstrip('/')}/api/v2/query",
                 params={"org": self.org},
@@ -392,10 +390,8 @@ class PrometheusGenerationLoader:
     ) -> HistoricalData:
         """Query range-vector PV power and convert to energy records."""
 
-        import httpx
-
         step_seconds = self.window_minutes * 60
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
+        async with async_client(timeout=self.timeout) as client:
             response = await client.get(
                 f"{self.url.rstrip('/')}/api/v1/query_range",
                 params={
