@@ -60,3 +60,5 @@ release-dist/
 .release-download/
 .release-assets/
 .release-evidence/
+
+!CHANGELOG.md

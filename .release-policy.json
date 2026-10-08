@@ -26,5 +26,6 @@
     "solar_forecast_langgraph-*.tar.gz"
   ],
   "visibility": "public",
-  "single_entry_ci": true
+  "single_entry_ci": true,
+  "release_notes": "CHANGELOG.md"
 }
