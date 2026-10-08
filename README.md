@@ -340,3 +340,5 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development, bug reports and proposal
 [SECURITY.md](SECURITY.md) for confidential vulnerability reports and deployment
 boundaries, and the [OpenSSF evidence index](docs/openssf-evidence.md) for assessment
 scope and verification.
+
+HTTPS transport and runtime requirements are described in [TLS policy](docs/tls-policy.md).

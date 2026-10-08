@@ -8,9 +8,10 @@ from datetime import UTC, datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
-import httpx
 from pydantic import BaseModel, Field
 from tenacity import retry, stop_after_attempt, wait_exponential
+
+from .httpx_tls import async_client
 
 OPENMETEO_BASE_URL = "https://api.open-meteo.com/v1/forecast"
 
@@ -120,7 +121,7 @@ class OpenMeteoClient:
             params["past_days"] = past_days
             params["forecast_days"] = -(-min(horizon_hours, 168) // 24)
 
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
+        async with async_client(timeout=self.timeout) as client:
             response = await client.get(self.base_url, params=params)
             response.raise_for_status()
             data = response.json()
