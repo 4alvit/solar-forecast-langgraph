@@ -71,8 +71,9 @@ The maintainer requesting the RC owns its release notes and acceptance evidence.
 Before requesting stable, the maintainer must:
 
 - Review the changes, compatibility impact, known issues and upgrade/recovery
-  instructions. Update the existing changelog when present; otherwise include a
-  human-readable summary in the release preparation PR. The categories in
+  instructions. Update `CHANGELOG.md` in the release source commit under one
+  `## [X.Y.Z]` base-version heading, with nonempty `### Upgrade` and `### Security`
+  sections. The categories in
   [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) are a useful format.
 - Test the exact RC assets on the intended targets, including applicable hardware,
   operating systems, integrations and configuration/data migrations. Record the
@@ -88,6 +89,12 @@ on public repositories, where that capability is available without a paid privat
 repository security plan. A single maintainer may request and approve a release;
 this is not an independently enforced two-person review policy. Human acceptance
 and release-note quality remain maintainer responsibilities, not inferred CI results.
+
+Release section headings use ATX syntax (`#`, `##`, `###`), with up to three
+leading spaces. Each section ends at the next heading of the same or a higher
+level. Underlined Setext headings inside the selected version section are
+rejected; use ATX headings or put a blank line before a thematic `---` separator.
+Comments and code examples do not define release sections.
 
 ## Publication and deployment
 
