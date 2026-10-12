@@ -35,6 +35,62 @@ SHA = "a" * 40
 RC_TAG = "v1.2.3-rc.2"
 
 
+class MissingResourceStatusTests(unittest.TestCase):
+    """Only an exact missing-resource diagnostic can permit publication."""
+
+    def test_exact_missing_status_returns_none(self):
+        gh = rc.GitHub(REPO)
+        for message in (
+            b"gh: Not Found (HTTP 404)",
+            b"gh: HTTP 404",
+            b"gh: HTTP 404: Not Found",
+            b"gh: HTTP 404 \t\r\n",
+        ):
+            with (
+                self.subTest(message=message),
+                patch.object(rc.subprocess, "run", return_value=subprocess.CompletedProcess(
+                    [], 1, b"", message,
+                )) as run,
+            ):
+                self.assertIsNone(gh.optional("git/ref/tags/v1.2.3"))
+            run.assert_called_once()
+
+    def test_embedded_or_conflicting_404_cannot_authorize_publication(self):
+        gh = rc.GitHub(REPO)
+        for message in (
+            b"gh: Request failed: HTTP 404 from upstream (HTTP 403)",
+            b"gh: HTTP 4040: invalid status",
+            b"gh: HTTP 404suffix",
+            b"other tool: HTTP 404",
+            b"gh: HTTP 404: Gateway reported (HTTP 502)",
+            b"gh: HTTP 502: Gateway reported (HTTP 404)",
+            b"gh: HTTP 404\ngh: HTTP 403",
+            b"gh: HTTP 502: upstream returned HTTP 404",
+        ):
+            with (
+                self.subTest(message=message),
+                patch.object(rc.subprocess, "run", return_value=subprocess.CompletedProcess(
+                    [], 1, b"", message,
+                )) as run,
+                self.assertRaises(rc.GitHubError) as error,
+            ):
+                rc.ensure_absent(gh, "v1.2.3")
+            self.assertFalse(error.exception.not_found)
+            run.assert_called_once()
+
+    def test_failed_write_is_not_replayed_or_classified_as_missing(self):
+        gh = rc.GitHub(REPO)
+        with (
+            patch.object(rc.subprocess, "run", return_value=subprocess.CompletedProcess(
+                [], 1, b"", b"gh: Authorization error mentions HTTP 404 (HTTP 403)",
+            )) as run,
+            self.assertRaises(rc.GitHubError) as error,
+        ):
+            gh.api("releases", "POST", {"tag_name": RC_TAG})
+        self.assertFalse(error.exception.not_found)
+        run.assert_called_once()
+
+
 class AutomaticBetaPreparationTests(unittest.TestCase):
     """An occupied base skips only automatic builds, never explicit requests."""
 
