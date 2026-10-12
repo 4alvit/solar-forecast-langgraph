@@ -62,16 +62,24 @@ graph TD
 
 ## Installation
 
-### From PyPI (recommended)
+### From a stable GitHub release
+
+[GitHub Releases](https://github.com/4alvit/solar-forecast-langgraph/releases) is the
+current release channel. As of 12 October 2026, GitHub stable is `v0.1.4`, while
+[PyPI](https://pypi.org/project/solar-forecast-langgraph/) still serves `0.1.2`.
+An unqualified `pip install solar-forecast-langgraph` therefore does not install
+the current GitHub release.
 
 ```bash
-# Create and activate a virtual environment
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
-
-# Install from PyPI
-pip install solar-forecast-langgraph
+python -m pip install "https://github.com/4alvit/solar-forecast-langgraph/releases/download/v0.1.4/solar_forecast_langgraph-0.1.4-py3-none-any.whl"
 ```
+
+Select an explicit stable tag and verify its `SHA256SUMS` and
+`release-manifest.json` when updating. Nightly, beta and RC tags are prereleases.
+PyPI publication is a separate verified-asset promotion; it is not triggered by
+creating a GitHub release. See [distribution channels](docs/distribution-channels.md).
 
 After installing, check the CLI is available:
 
@@ -313,15 +321,15 @@ solar-forecast-langgraph/
 
 ## Docker
 
-Multi-arch images (`linux/amd64`, `linux/arm64`) publish to GHCR on `main`, `v*` tags, and `workflow_dispatch`:
+The release pipeline builds `linux/amd64` and `linux/arm64` OCI artifacts and
+attaches them to GitHub releases. Publishing those verified bytes to GHCR is a
+separate explicit operation; pushes to `main` and prereleases do not deploy a
+container or move `latest`.
 
-```bash
-docker pull ghcr.io/4alvit/solar-forecast-langgraph:latest
-```
-
-After the first publish, set the GHCR package visibility to **public** (Packages → package settings) so Synology/Portainer can pull without a registry login — same pattern as other public `4alvit` images.
-
-Portainer compose should use `ghcr.io/4alvit/solar-forecast-langgraph:${IMAGE_TAG:-latest}` with `pull_image` enabled once the package is public.
+Before configuring Docker or Portainer, verify that the intended stable version
+has been published to `ghcr.io/4alvit/solar-forecast-langgraph`, then pin its image
+digest. The [distribution runbook](docs/distribution-channels.md) describes the
+verification and publication boundary.
 
 ## Related Projects
 
