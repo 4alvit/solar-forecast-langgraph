@@ -43,7 +43,7 @@ jobs:
           if [[ "$FORCE_FULL" == true ]]; then args+=(--force); fi
           python3 scripts/change_scope.py "${args[@]}" --documentation-paths-json "$DOCUMENTATION_PATHS" --required-paths-json "$REQUIRED_PATHS"
   check-0:
-    uses: ./.github/workflows/ci.yml
+    uses: ./.github/workflows/ci-checks.yml
     permissions:
       contents: read
       actions: read

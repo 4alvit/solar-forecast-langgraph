@@ -16,7 +16,7 @@ python3 scripts/release.py status
 ```
 
 Callable validation workflows:
-- `.github/workflows/ci.yml`
+- `.github/workflows/ci-checks.yml`
 - `.github/workflows/codeql.yml`
 - `.github/workflows/release-security.yml`
 

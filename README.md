@@ -1,6 +1,6 @@
 # Solar Forecast LangGraph
 
-[![CI](https://github.com/4alvit/solar-forecast-langgraph/workflows/CI/badge.svg)](https://github.com/4alvit/solar-forecast-langgraph/actions/workflows/ci.yml)
+[![CI](https://github.com/4alvit/solar-forecast-langgraph/actions/workflows/quality-gate.yml/badge.svg)](https://github.com/4alvit/solar-forecast-langgraph/actions/workflows/quality-gate.yml)
 [![Coverage](https://codecov.io/gh/4alvit/solar-forecast-langgraph/branch/main/graph/badge.svg)](https://codecov.io/gh/4alvit/solar-forecast-langgraph)
 [![PyPI](https://img.shields.io/pypi/v/solar-forecast-langgraph.svg)](https://pypi.org/project/solar-forecast-langgraph/)
 [![Python](https://img.shields.io/pypi/pyversions/solar-forecast-langgraph.svg)](https://pypi.org/project/solar-forecast-langgraph/)
@@ -12,7 +12,7 @@ LangGraph workflow for solar forecasting with:
 - **Panel configuration schema** — Azimuth, tilt, capacity, losses
 - **Forecast model** — Physical (clear-sky + clouds) + Statistical (ML) + LLM reasoning
 - **Inverter-control integration** — Pre-charge battery before cloudy periods
-- **Accuracy tracking** — Feedback loop for continuous improvement
+- **Forecast validation** — Evaluation requirements and current limitations ([guide](docs/forecast-validation.md))
 
 ---
 
@@ -39,8 +39,8 @@ graph TD
     G --> H[Inverter-Control Hook<br/>Pre-charge decision]
     H --> I[Final Forecast Output]
     
-    I --> J[Accuracy Tracking<br/>Feedback Loop]
-    J -.-> K[Model Retraining - Scheduler]
+    I -.-> J[Planned: accuracy tracking]
+    J -.-> K[Planned: retraining scheduler]
     
     subgraph "Data Sources"
         C
@@ -62,16 +62,31 @@ graph TD
 
 ## Installation
 
-### From PyPI (recommended)
+### From the stable release
+
+As of 12 October 2026, [PyPI](https://pypi.org/project/solar-forecast-langgraph/0.1.4/)
+and [GitHub Releases](https://github.com/4alvit/solar-forecast-langgraph/releases/tag/v0.1.4)
+both provide `0.1.4`. The [verified publication](https://github.com/4alvit/solar-forecast-langgraph/actions/runs/38299579517)
+uploaded the existing approved wheel and sdist without rebuilding them.
 
 ```bash
-# Create and activate a virtual environment
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
-
-# Install from PyPI
-pip install solar-forecast-langgraph
+python -m pip install solar-forecast-langgraph==0.1.4
 ```
+
+The same wheel is also available directly from GitHub:
+
+```bash
+python -m pip install "https://github.com/4alvit/solar-forecast-langgraph/releases/download/v0.1.4/solar_forecast_langgraph-0.1.4-py3-none-any.whl"
+```
+
+Select an explicit stable version and verify its `SHA256SUMS` and
+`release-manifest.json` when updating. Nightly, beta and RC tags are prereleases.
+PyPI publication remains a separate manual promotion of verified assets;
+creating a GitHub release does not publish it automatically. See
+[distribution channels](docs/distribution-channels.md) for the verified hashes
+and promotion procedure.
 
 After installing, check the CLI is available:
 
@@ -166,7 +181,7 @@ See [site_config.example.py](site_config.example.py) for full example.
 |--------|-------------|----------|
 | `physical` | Clear-sky model + cloud adjustment | No historical data |
 | `statistical` | ML model on historical data | Sufficient history (30+ days) |
-| `ensemble` | Weighted: 60% physical + 40% statistical | **Default, best accuracy** |
+| `ensemble` | Weighted: 60% physical + 40% statistical | Default; comparative accuracy is not yet established |
 | `llm_enhanced` | LLM analyzes weather patterns | Future: complex weather |
 
 ---
@@ -227,27 +242,17 @@ runs in UTC. Forecast publication continues while pre-charge is suppressed.
 
 ---
 
-## Accuracy Tracking
+## Forecast Validation
 
-Feedback loop for continuous improvement:
+The implementation trains from historical generation and produces forecasts.
+It does not yet persist forecast-versus-actual pairs, calculate operational
+MAE/RMSE/MAPE/bias, or automatically retrain based on measured errors. Unit tests
+use synthetic weather/generation and check behavior; they are not evidence of
+accuracy on a real installation.
 
-```mermaid
-graph TD
-    A[Forecast] --> B[Actual Generation]
-    B --> C[Error Metrics]
-    C --> D{Error > Threshold?}
-    D -->|Yes| E[Flag for Review]
-    D -->|No| F[Update Training Data]
-    F --> G[Retrain Model]
-    E --> H[Human Analysis]
-    H --> G
-```
-
-Metrics tracked per panel:
-- **MAE** (Mean Absolute Error)
-- **RMSE** (Root Mean Square Error)
-- **MAPE** (Mean Absolute Percentage Error)
-- **Bias** (Systematic over/under prediction)
+See [forecast validation](docs/forecast-validation.md) for the required public
+data, chronological holdout, baselines, and metrics before claiming that one
+method is more accurate or using forecasts for operational decisions.
 
 ---
 
@@ -291,7 +296,7 @@ solar-forecast-langgraph/
 │   ├── test_weather.py
 │   ├── test_model.py
 │   └── test_workflow.py
-├── .github/workflows/ci.yml # CI/CD pipeline
+├── .github/workflows/ci-checks.yml # Reusable CI checks
 ├── pyproject.toml           # Package config
 ├── site_config.example.py   # Example configuration
 └── README.md
@@ -313,15 +318,15 @@ solar-forecast-langgraph/
 
 ## Docker
 
-Multi-arch images (`linux/amd64`, `linux/arm64`) publish to GHCR on `main`, `v*` tags, and `workflow_dispatch`:
+The release pipeline builds `linux/amd64` and `linux/arm64` OCI artifacts and
+attaches them to GitHub releases. Publishing those verified bytes to GHCR is a
+separate explicit operation; pushes to `main` and prereleases do not deploy a
+container or move `latest`.
 
-```bash
-docker pull ghcr.io/4alvit/solar-forecast-langgraph:latest
-```
-
-After the first publish, set the GHCR package visibility to **public** (Packages → package settings) so Synology/Portainer can pull without a registry login — same pattern as other public `4alvit` images.
-
-Portainer compose should use `ghcr.io/4alvit/solar-forecast-langgraph:${IMAGE_TAG:-latest}` with `pull_image` enabled once the package is public.
+Before configuring Docker or Portainer, verify that the intended stable version
+has been published to `ghcr.io/4alvit/solar-forecast-langgraph`, then pin its image
+digest. The [distribution runbook](docs/distribution-channels.md) describes the
+verification and publication boundary.
 
 ## Related Projects
 

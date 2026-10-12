@@ -7,13 +7,13 @@ import asyncio
 import json
 import sys
 from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
-from solar_forecast import (
-    DEFAULT_SITE,
-    SiteConfig,
-    run_forecast,
-)
+from solar_forecast import __version__
+
+if TYPE_CHECKING:
+    from solar_forecast.config import SiteConfig
 
 
 async def aio_write_json(path: str, data: dict):
@@ -36,6 +36,8 @@ def load_site_config(config_path: str | None) -> SiteConfig:
         if hasattr(module, "SITE_CONFIG"):
             return module.SITE_CONFIG
         raise ValueError(f"SITE_CONFIG not found in {config_path}")
+    from solar_forecast.config import DEFAULT_SITE
+
     return DEFAULT_SITE
 
 
@@ -48,6 +50,8 @@ async def main_async(
     output_format: str,
 ):
     """Async main function."""
+    from solar_forecast.workflow import run_forecast
+
     print(f"Starting forecast for {site_config.site_name}...")
     if panel_id:
         panel = site_config.panel_by_id(panel_id)
@@ -171,7 +175,7 @@ def main():
     parser.add_argument(
         "--version",
         action="version",
-        version="solar-forecast-langgraph 0.1.0",
+        version=f"solar-forecast-langgraph {__version__}",
     )
 
     args = parser.parse_args()
