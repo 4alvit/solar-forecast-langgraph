@@ -24,12 +24,30 @@ workflow evidence, asset inventory and hashes, and prints the exact upload
 commands. If provenance has expired or any check fails, stop and prepare a new
 qualified release. Do not rebuild an existing version or bypass verification.
 
-After the operator approves publication and configures PyPI credentials for this
-project, repeat with `--execute`. This uploads the existing approved wheel/sdist;
-it does not build a new package. Verify the version and both distribution hashes
-at `https://pypi.org/pypi/solar-forecast-langgraph/0.1.4/json` against the GitHub
-manifest before recommending the PyPI install command again. Never overwrite a
-published version.
+The existing PyPI Trusted Publisher is bound to this repository's `ci.yml`.
+From the protected `main` branch, a maintainer can publish the verified release
+without a long-lived PyPI token:
+
+```bash
+gh workflow run ci.yml --repo 4alvit/solar-forecast-langgraph --ref main -f stable_tag=v0.1.4
+```
+
+The first job has read-only GitHub access and no OIDC permission. It runs the
+same immutable-evidence verifier, checks the distribution metadata, and stages
+only the original wheel and sdist. A separate publishing job verifies the
+transferred file inventory and hashes against the first job's receipt digest,
+then uses the official PyPA action with job-scoped OIDC access. Neither job
+builds a package. `ci-checks.yml` retains the reusable application checks;
+publication cannot run through the pull-request or release validation paths.
+
+Publication fails on existing filenames. If an upload stops part-way through,
+inspect PyPI's existing file hashes before choosing a recovery action; do not
+blindly skip duplicates. Verify the version and both distribution hashes at
+`https://pypi.org/pypi/solar-forecast-langgraph/0.1.4/json` against the GitHub
+manifest before recommending the PyPI install command again.
+
+The local `--execute` option remains available to operators with separately
+configured credentials, but the workflow uses the existing OIDC trust.
 
 GHCR uses the same separate boundary:
 

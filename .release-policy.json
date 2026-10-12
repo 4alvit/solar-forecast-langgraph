@@ -4,7 +4,7 @@
   "mode": "release",
   "default_branch": "main",
   "validation_workflows": [
-    "ci.yml",
+    "ci-checks.yml",
     "codeql.yml",
     "release-security.yml",
     "dependency-review.yml"
