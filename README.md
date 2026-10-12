@@ -1,6 +1,6 @@
 # Solar Forecast LangGraph
 
-[![CI](https://github.com/4alvit/solar-forecast-langgraph/workflows/CI/badge.svg)](https://github.com/4alvit/solar-forecast-langgraph/actions/workflows/ci.yml)
+[![CI](https://github.com/4alvit/solar-forecast-langgraph/workflows/CI/badge.svg)](https://github.com/4alvit/solar-forecast-langgraph/actions/workflows/quality-gate.yml)
 [![Coverage](https://codecov.io/gh/4alvit/solar-forecast-langgraph/branch/main/graph/badge.svg)](https://codecov.io/gh/4alvit/solar-forecast-langgraph)
 [![PyPI](https://img.shields.io/pypi/v/solar-forecast-langgraph.svg)](https://pypi.org/project/solar-forecast-langgraph/)
 [![Python](https://img.shields.io/pypi/pyversions/solar-forecast-langgraph.svg)](https://pypi.org/project/solar-forecast-langgraph/)
@@ -289,7 +289,7 @@ solar-forecast-langgraph/
 │   ├── test_weather.py
 │   ├── test_model.py
 │   └── test_workflow.py
-├── .github/workflows/ci.yml # CI/CD pipeline
+├── .github/workflows/ci-checks.yml # Reusable CI checks
 ├── pyproject.toml           # Package config
 ├── site_config.example.py   # Example configuration
 └── README.md
