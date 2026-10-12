@@ -12,7 +12,7 @@ LangGraph workflow for solar forecasting with:
 - **Panel configuration schema** — Azimuth, tilt, capacity, losses
 - **Forecast model** — Physical (clear-sky + clouds) + Statistical (ML) + LLM reasoning
 - **Inverter-control integration** — Pre-charge battery before cloudy periods
-- **Accuracy tracking** — Feedback loop for continuous improvement
+- **Forecast validation** — Evaluation requirements and current limitations ([guide](docs/forecast-validation.md))
 
 ---
 
@@ -39,8 +39,8 @@ graph TD
     G --> H[Inverter-Control Hook<br/>Pre-charge decision]
     H --> I[Final Forecast Output]
     
-    I --> J[Accuracy Tracking<br/>Feedback Loop]
-    J -.-> K[Model Retraining - Scheduler]
+    I -.-> J[Planned: accuracy tracking]
+    J -.-> K[Planned: retraining scheduler]
     
     subgraph "Data Sources"
         C
@@ -174,7 +174,7 @@ See [site_config.example.py](site_config.example.py) for full example.
 |--------|-------------|----------|
 | `physical` | Clear-sky model + cloud adjustment | No historical data |
 | `statistical` | ML model on historical data | Sufficient history (30+ days) |
-| `ensemble` | Weighted: 60% physical + 40% statistical | **Default, best accuracy** |
+| `ensemble` | Weighted: 60% physical + 40% statistical | Default; comparative accuracy is not yet established |
 | `llm_enhanced` | LLM analyzes weather patterns | Future: complex weather |
 
 ---
@@ -235,27 +235,17 @@ runs in UTC. Forecast publication continues while pre-charge is suppressed.
 
 ---
 
-## Accuracy Tracking
+## Forecast Validation
 
-Feedback loop for continuous improvement:
+The implementation trains from historical generation and produces forecasts.
+It does not yet persist forecast-versus-actual pairs, calculate operational
+MAE/RMSE/MAPE/bias, or automatically retrain based on measured errors. Unit tests
+use synthetic weather/generation and check behavior; they are not evidence of
+accuracy on a real installation.
 
-```mermaid
-graph TD
-    A[Forecast] --> B[Actual Generation]
-    B --> C[Error Metrics]
-    C --> D{Error > Threshold?}
-    D -->|Yes| E[Flag for Review]
-    D -->|No| F[Update Training Data]
-    F --> G[Retrain Model]
-    E --> H[Human Analysis]
-    H --> G
-```
-
-Metrics tracked per panel:
-- **MAE** (Mean Absolute Error)
-- **RMSE** (Root Mean Square Error)
-- **MAPE** (Mean Absolute Percentage Error)
-- **Bias** (Systematic over/under prediction)
+See [forecast validation](docs/forecast-validation.md) for the required public
+data, chronological holdout, baselines, and metrics before claiming that one
+method is more accurate or using forecasts for operational decisions.
 
 ---
 
