@@ -1,6 +1,6 @@
 # Solar Forecast LangGraph
 
-[![CI](https://github.com/4alvit/solar-forecast-langgraph/workflows/CI/badge.svg)](https://github.com/4alvit/solar-forecast-langgraph/actions/workflows/quality-gate.yml)
+[![CI](https://github.com/4alvit/solar-forecast-langgraph/actions/workflows/quality-gate.yml/badge.svg)](https://github.com/4alvit/solar-forecast-langgraph/actions/workflows/quality-gate.yml)
 [![Coverage](https://codecov.io/gh/4alvit/solar-forecast-langgraph/branch/main/graph/badge.svg)](https://codecov.io/gh/4alvit/solar-forecast-langgraph)
 [![PyPI](https://img.shields.io/pypi/v/solar-forecast-langgraph.svg)](https://pypi.org/project/solar-forecast-langgraph/)
 [![Python](https://img.shields.io/pypi/pyversions/solar-forecast-langgraph.svg)](https://pypi.org/project/solar-forecast-langgraph/)
@@ -62,24 +62,31 @@ graph TD
 
 ## Installation
 
-### From a stable GitHub release
+### From the stable release
 
-[GitHub Releases](https://github.com/4alvit/solar-forecast-langgraph/releases) is the
-current release channel. As of 12 October 2026, GitHub stable is `v0.1.4`, while
-[PyPI](https://pypi.org/project/solar-forecast-langgraph/) still serves `0.1.2`.
-An unqualified `pip install solar-forecast-langgraph` therefore does not install
-the current GitHub release.
+As of 12 October 2026, [PyPI](https://pypi.org/project/solar-forecast-langgraph/0.1.4/)
+and [GitHub Releases](https://github.com/4alvit/solar-forecast-langgraph/releases/tag/v0.1.4)
+both provide `0.1.4`. The [verified publication](https://github.com/4alvit/solar-forecast-langgraph/actions/runs/38299579517)
+uploaded the existing approved wheel and sdist without rebuilding them.
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
+python -m pip install solar-forecast-langgraph==0.1.4
+```
+
+The same wheel is also available directly from GitHub:
+
+```bash
 python -m pip install "https://github.com/4alvit/solar-forecast-langgraph/releases/download/v0.1.4/solar_forecast_langgraph-0.1.4-py3-none-any.whl"
 ```
 
-Select an explicit stable tag and verify its `SHA256SUMS` and
+Select an explicit stable version and verify its `SHA256SUMS` and
 `release-manifest.json` when updating. Nightly, beta and RC tags are prereleases.
-PyPI publication is a separate verified-asset promotion; it is not triggered by
-creating a GitHub release. See [distribution channels](docs/distribution-channels.md).
+PyPI publication remains a separate manual promotion of verified assets;
+creating a GitHub release does not publish it automatically. See
+[distribution channels](docs/distribution-channels.md) for the verified hashes
+and promotion procedure.
 
 After installing, check the CLI is available:
 
