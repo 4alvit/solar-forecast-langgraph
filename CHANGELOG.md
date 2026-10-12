@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.5]
+
+### Changed
+
+Start the next beta cycle after the published 0.1.4 release. This candidate includes explicit HTTPX TLS configuration, platform certificate handling, CLI version reporting, and stricter artifact and publication verification added since 0.1.4.
+
+### Upgrade
+
+Keep using the published stable package unless testing this beta. Preserve site coordinates, broker credentials and local certificate settings; review the documented TLS policy when testing deployments. Beta publication does not update the stable PyPI package or deploy services.
+
+### Security
+
+TLS and release checks remain enabled. This version change opens a new immutable release series and does not itself claim to fix an additional vulnerability.
+
 ## [0.1.4]
 
 ### Changed
