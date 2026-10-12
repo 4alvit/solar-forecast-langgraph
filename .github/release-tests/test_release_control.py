@@ -35,6 +35,14 @@ SHA = "a" * 40
 RC_TAG = "v1.2.3-rc.2"
 
 
+def http_response(status=0, stdout=b"{}", error_format="gh: API failed (HTTP {status})"):
+    """Return a complete gh --include fixture independent of retry support."""
+    return subprocess.CompletedProcess(
+        [], bool(status), f"HTTP/2.0 {status or 200} Test\nContent-Type: application/json\r\n\r\n".encode() + stdout,
+        error_format.format(status=status).encode() if status else b"",
+    )
+
+
 class MissingResourceStatusTests(unittest.TestCase):
     """Only an exact missing-resource diagnostic can permit publication."""
 
@@ -49,7 +57,7 @@ class MissingResourceStatusTests(unittest.TestCase):
             with (
                 self.subTest(message=message),
                 patch.object(rc.subprocess, "run", return_value=subprocess.CompletedProcess(
-                    [], 1, b"", message,
+                    [], 1, http_response(404).stdout, message,
                 )) as run,
             ):
                 self.assertIsNone(gh.optional("git/ref/tags/v1.2.3"))
@@ -70,7 +78,7 @@ class MissingResourceStatusTests(unittest.TestCase):
             with (
                 self.subTest(message=message),
                 patch.object(rc.subprocess, "run", return_value=subprocess.CompletedProcess(
-                    [], 1, b"", message,
+                    [], 1, http_response(403).stdout, message,
                 )) as run,
                 self.assertRaises(rc.GitHubError) as error,
             ):
@@ -82,7 +90,7 @@ class MissingResourceStatusTests(unittest.TestCase):
         gh = rc.GitHub(REPO)
         with (
             patch.object(rc.subprocess, "run", return_value=subprocess.CompletedProcess(
-                [], 1, b"", b"gh: Authorization error mentions HTTP 404 (HTTP 403)",
+                [], 1, http_response(403).stdout, b"gh: Authorization error mentions HTTP 404 (HTTP 403)",
             )) as run,
             self.assertRaises(rc.GitHubError) as error,
         ):
@@ -1087,11 +1095,9 @@ class PublicationPermissionTests(unittest.TestCase):
             patch.object(
                 rc.subprocess,
                 "run",
-                return_value=subprocess.CompletedProcess(
-                    [],
-                    1,
-                    b"private body",
-                    b"gh: Resource not accessible by integration (HTTP 403)",
+                return_value=http_response(
+                    403, b"private body",
+                    "gh: Resource not accessible by integration (HTTP {status})",
                 ),
             ),
             self.assertRaises(rc.GitHubError) as error,
@@ -1235,7 +1241,7 @@ class TransportTests(unittest.TestCase):
         gh = rc.GitHub(REPO)
         body = {"body": "--hostname evil.com --clobber #label"}
         with patch.object(
-            rc.subprocess, "run", return_value=subprocess.CompletedProcess([], 0, b"{}")
+            rc.subprocess, "run", return_value=http_response()
         ) as command:
             gh.api("")
             gh.api("releases", "POST", body)
@@ -1247,6 +1253,7 @@ class TransportTests(unittest.TestCase):
                 "api",
                 "--hostname",
                 "github.com",
+                "--include",
                 "--method",
                 "GET",
                 "--",
@@ -1281,7 +1288,7 @@ class TransportTests(unittest.TestCase):
             f"compare/{SHA}...feature%2Fbranch",
         ]
         with patch.object(
-            rc.subprocess, "run", return_value=subprocess.CompletedProcess([], 0, b"{}")
+            rc.subprocess, "run", return_value=http_response()
         ) as command:
             for path in paths:
                 gh.api(path)
@@ -1518,7 +1525,7 @@ class OfflineValidationTests(unittest.TestCase):
             else:
                 self.assertIn("Accept: application/octet-stream", command)
                 data = b"release asset"
-            return subprocess.CompletedProcess(command, 0, data)
+            return http_response(stdout=data)
 
         with patch.object(rc.subprocess, "run", side_effect=service):
             self.assertEqual(gh.binary("actions/artifacts/40/zip"), b"zip archive")
@@ -1644,18 +1651,16 @@ class OfflineValidationTests(unittest.TestCase):
             return_value=subprocess.CompletedProcess(
                 [],
                 0,
-                json.dumps(
-                    [
-                        {"jobs": [{"name": "build"}]},
-                        {"jobs": [{"name": "Release gate"}]},
-                    ]
-                ).encode(),
+                http_response(stdout=b'{"jobs":[{"name":"build"}]}').stdout
+                + b"\n"
+                + http_response(stdout=b'{"jobs":[{"name":"Release gate"}]}').stdout,
             ),
         ) as command:
             jobs = gh.pages("actions/runs/17/attempts/1/jobs", "jobs")
         self.assertEqual([job["name"] for job in jobs], ["build", "Release gate"])
         self.assertIn("--paginate", command.call_args.args[0])
-        self.assertIn("--slurp", command.call_args.args[0])
+        self.assertNotIn("--slurp", command.call_args.args[0])
+        self.assertIn("--include", command.call_args.args[0])
 
     def test_permission_errors_do_not_masquerade_as_absent_tags(self):
         """Permission errors do not masquerade as absent tags."""
@@ -1999,9 +2004,7 @@ class SupersededCandidateTests(unittest.TestCase):
             "actions/workflows/release-pipeline.yml/runs"
             f"?branch=main&event=push&head_sha={self.head}&per_page=100"
         )
-        result = subprocess.CompletedProcess(
-            [], 0, b'{"total_count":0,"workflow_runs":[]}', b""
-        )
+        result = http_response(stdout=b'{"total_count":0,"workflow_runs":[]}')
         with patch.object(rc.subprocess, "run", return_value=result) as command:
             client.api(path)
             self.assertEqual(command.call_args.args[0][-1], f"repos/{REPO}/{path}")
