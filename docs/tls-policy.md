@@ -32,6 +32,8 @@ proxy credentials. HTTPX's default limits, timeouts, redirect and retry behavior
 remain unchanged. HTTPX and HTTPcore are pinned because the environment routing
 helper is private and covered by regression tests.
 
-The optional OpenAI/LangChain client is a separate transport which this change
-does not configure. MQTT delivery and external ingress also require their own
-assessment. This is not a project-wide OpenSSF key-length attestation.
+The optional OpenAI/LangChain async client uses the same owned HTTPX transport.
+Local TLS tests exercise the actual SDK request and prove that an undersized
+verified root, untrusted chain or wrong hostname blocks the request before the
+API token is sent. The per-request client closes on success, error or cancellation.
+MQTT delivery and external ingress remain separate deployment boundaries.

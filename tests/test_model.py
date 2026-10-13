@@ -451,6 +451,12 @@ def test_enhance_with_llm(mock_chat_openai):
     assert enhanced.model_version == "0.1.0+llm"
     # Power should be reduced by 10%
     assert all(p.power_w == 900.0 for p in enhanced.points)
+    assert mock_chat_openai.call_args.kwargs["http_async_client"].is_closed
+
+    mock_llm.ainvoke.side_effect = RuntimeError("synthetic provider failure")
+    with pytest.raises(RuntimeError, match="synthetic provider failure"):
+        asyncio.run(enhance_with_llm(base_forecast, weather, site, panel, hist_df))
+    assert mock_chat_openai.call_args.kwargs["http_async_client"].is_closed
 
 
 @patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})

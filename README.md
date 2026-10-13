@@ -1,5 +1,6 @@
 # Solar Forecast LangGraph
 
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15459/badge)](https://www.bestpractices.dev/projects/15459)
 [![CI](https://github.com/4alvit/solar-forecast-langgraph/actions/workflows/quality-gate.yml/badge.svg)](https://github.com/4alvit/solar-forecast-langgraph/actions/workflows/quality-gate.yml)
 [![Coverage](https://codecov.io/gh/4alvit/solar-forecast-langgraph/branch/main/graph/badge.svg)](https://codecov.io/gh/4alvit/solar-forecast-langgraph)
 [![PyPI](https://img.shields.io/pypi/v/solar-forecast-langgraph.svg)](https://pypi.org/project/solar-forecast-langgraph/)
@@ -347,3 +348,5 @@ boundaries, and the [OpenSSF evidence index](docs/openssf-evidence.md) for asses
 scope and verification.
 
 HTTPS transport and runtime requirements are described in [TLS policy](docs/tls-policy.md).
+
+Project responsibilities and decisions are documented in [Governance](GOVERNANCE.md), expected conduct in the [Code of conduct](CODE_OF_CONDUCT.md), and priorities in the [Roadmap](ROADMAP.md). The [security assurance case](docs/security-assurance.md) records controls, evidence and unresolved limits.

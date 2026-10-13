@@ -1,0 +1,461 @@
+{
+  "project": "4alvit/solar-forecast-langgraph",
+  "assessed_on": "2026-10-13",
+  "source_base": "65a2c87d3e98f3f4e2cf8c10a11ff8665c7145ea",
+  "source_identity": "The per-file SHA-256 values below identify the assessed application/tooling bytes including the uncommitted changes in this assessment PR.",
+  "local_validation": {
+    "python": "3.12.14",
+    "platform": "macOS arm64",
+    "combined_pytest_passed": 440,
+    "combined_suites": [
+      "tests",
+      ".github/release-tests",
+      ".github/workflow-tests",
+      ".github/security-tests"
+    ],
+    "additional_final_socket_lifetime_cases_passed": 3,
+    "lint": "Ruff passed",
+    "format": "Ruff passed",
+    "types": "mypy passed",
+    "warning_policy": "error; only exact documented third-party compatibility exceptions in Gateway",
+    "package_build": [
+      "sdist",
+      "wheel"
+    ],
+    "production_or_device_acceptance": false
+  },
+  "coverage": {
+    "scope": "All tracked non-test Python files, including previously unmeasured files at zero credit; no exclusions. Does not measure shell, workflow, Docker or native dependencies.",
+    "covered": 1849,
+    "statements": 2826,
+    "percent": 65.4281670205237,
+    "files": [
+      {
+        "path": "scripts/change_scope.py",
+        "sha256": "dbc1908c8e9fbb6773938250862a805584b1ea4cf5b5c08dbdda57352a4473a5",
+        "statements": 160,
+        "covered": 0,
+        "excluded": 0
+      },
+      {
+        "path": "scripts/package_release.py",
+        "sha256": "f6ea747c3b48bcefabca6ea88d855e96cfd6f426554d7f100e2692ea035cf7bf",
+        "statements": 118,
+        "covered": 0,
+        "excluded": 0
+      },
+      {
+        "path": "scripts/publish_verified.py",
+        "sha256": "9f4824fc0c4e24108b64028c82c00218acaed63ed551667fac1700a36f52e651",
+        "statements": 102,
+        "covered": 31,
+        "excluded": 0
+      },
+      {
+        "path": "scripts/release.py",
+        "sha256": "6d7599a03549cebe3a8a3b951fc2aeec88d5ba1e13c78809492c14eb3fb8e281",
+        "statements": 176,
+        "covered": 0,
+        "excluded": 0
+      },
+      {
+        "path": "scripts/release_control.py",
+        "sha256": "de5481b1da3793f45e8088bfe8956680f2b799e404fb420768d1a1dc14a331d7",
+        "statements": 839,
+        "covered": 756,
+        "excluded": 0
+      },
+      {
+        "path": "scripts/stage_verified_pypi.py",
+        "sha256": "5ce765f24740bd4cbb888f85d71e1601eae5797dc285298d51c3883873914b9e",
+        "statements": 88,
+        "covered": 77,
+        "excluded": 0
+      },
+      {
+        "path": "scripts/validate_scorecard_json.py",
+        "sha256": "6b9633cd8e884dd40a5360223491560bd56ecdf9114c0a06d5d1ee3eaa87f3f3",
+        "statements": 46,
+        "covered": 45,
+        "excluded": 0
+      },
+      {
+        "path": "scripts/verified_images.py",
+        "sha256": "7d9b1f03428e2b400134eb1fc5a88f9b8a1ed2cf245c63a05ea8c46fcaa241f0",
+        "statements": 39,
+        "covered": 0,
+        "excluded": 0
+      },
+      {
+        "path": "scripts/workflow_contracts.py",
+        "sha256": "95e96f1c2003beb5e0200eacef01a16ff1b68a0827c0d4ba8a68375ffe60d795",
+        "statements": 106,
+        "covered": 52,
+        "excluded": 0
+      },
+      {
+        "path": "site_config.example.py",
+        "sha256": "30646caa1004553b6ad6f940d1c2ffd120de5053c9ebb5acd772afbc561e7b3a",
+        "statements": 8,
+        "covered": 0,
+        "excluded": 0
+      },
+      {
+        "path": "solar_forecast/__init__.py",
+        "sha256": "1e8018527f8795ab4a6a47bbaa0a43c2bb766ed47cac880dbd6e91587f6d66c5",
+        "statements": 25,
+        "covered": 18,
+        "excluded": 0
+      },
+      {
+        "path": "solar_forecast/_darwin_certificate.py",
+        "sha256": "aacdd5b35a788ff3727f85cc14831de5cd7eebcb474581c336a283bca524bcfb",
+        "statements": 82,
+        "covered": 72,
+        "excluded": 0
+      },
+      {
+        "path": "solar_forecast/config.py",
+        "sha256": "b857784baed2bf7465ec0661f302bf17bc9551b1cf3a8bbe0672af8f24253a43",
+        "statements": 41,
+        "covered": 41,
+        "excluded": 0
+      },
+      {
+        "path": "solar_forecast/delivery.py",
+        "sha256": "8709c5df3fc0e04b4c4cbed2014b664e247d1ddd9080fe1f36f75c5a1dc04fde",
+        "statements": 55,
+        "covered": 5,
+        "excluded": 0
+      },
+      {
+        "path": "solar_forecast/history.py",
+        "sha256": "652746a798956076257bb73da3ecba4dfed9462c758465dbae62ef6844fe081b",
+        "statements": 162,
+        "covered": 153,
+        "excluded": 0
+      },
+      {
+        "path": "solar_forecast/httpx_tls.py",
+        "sha256": "248ac7362df8a02321f5af46620c78d2943b8b954df2e0b3e394d19f64ddb100",
+        "statements": 16,
+        "covered": 16,
+        "excluded": 0
+      },
+      {
+        "path": "solar_forecast/main.py",
+        "sha256": "2c8d409b9e67ea2c7fda7784ec4362a3f8537894325a98228c7b04d584d449bc",
+        "statements": 101,
+        "covered": 18,
+        "excluded": 0
+      },
+      {
+        "path": "solar_forecast/model.py",
+        "sha256": "49a88b8b72426efe9a3d0097b8502015dd9a62cbbb7dfebeb0c13bb0e539e8b6",
+        "statements": 228,
+        "covered": 221,
+        "excluded": 0
+      },
+      {
+        "path": "solar_forecast/tls_policy.py",
+        "sha256": "42115de3f8ecb023318c1d390ec031eb03c7593687b9de5f2621bff205be48b0",
+        "statements": 72,
+        "covered": 54,
+        "excluded": 0
+      },
+      {
+        "path": "solar_forecast/weather.py",
+        "sha256": "eefe1e4465275b4f02335491486b2ef56c2b67ba63da61e001efa426066d06f3",
+        "statements": 74,
+        "covered": 64,
+        "excluded": 0
+      },
+      {
+        "path": "solar_forecast/workflow.py",
+        "sha256": "3c8ec76214d9b40392b772558e3f9f4f0992fa79d84012c98d6a8858ebff9b10",
+        "statements": 288,
+        "covered": 226,
+        "excluded": 0
+      }
+    ]
+  },
+  "tls_runtime": {
+    "minimum_version": "TLSv1_2",
+    "verify_mode": "CERT_REQUIRED",
+    "check_hostname": true,
+    "security_level": 2,
+    "openssl": "OpenSSL 3.5.8 25 Aug 2026",
+    "rand_status": true,
+    "ciphers": [
+      {
+        "id": 50336514,
+        "name": "TLS_AES_256_GCM_SHA384",
+        "protocol": "TLSv1.3",
+        "description": "TLS_AES_256_GCM_SHA384         TLSv1.3 Kx=any      Au=any   Enc=AESGCM(256)            Mac=AEAD",
+        "strength_bits": 256,
+        "alg_bits": 256,
+        "aead": true,
+        "symmetric": "aes-256-gcm",
+        "digest": null,
+        "kea": "kx-any",
+        "auth": "auth-any"
+      },
+      {
+        "id": 50336515,
+        "name": "TLS_CHACHA20_POLY1305_SHA256",
+        "protocol": "TLSv1.3",
+        "description": "TLS_CHACHA20_POLY1305_SHA256   TLSv1.3 Kx=any      Au=any   Enc=CHACHA20/POLY1305(256) Mac=AEAD",
+        "strength_bits": 256,
+        "alg_bits": 256,
+        "aead": true,
+        "symmetric": "chacha20-poly1305",
+        "digest": null,
+        "kea": "kx-any",
+        "auth": "auth-any"
+      },
+      {
+        "id": 50336513,
+        "name": "TLS_AES_128_GCM_SHA256",
+        "protocol": "TLSv1.3",
+        "description": "TLS_AES_128_GCM_SHA256         TLSv1.3 Kx=any      Au=any   Enc=AESGCM(128)            Mac=AEAD",
+        "strength_bits": 128,
+        "alg_bits": 128,
+        "aead": true,
+        "symmetric": "aes-128-gcm",
+        "digest": null,
+        "kea": "kx-any",
+        "auth": "auth-any"
+      },
+      {
+        "id": 50380844,
+        "name": "ECDHE-ECDSA-AES256-GCM-SHA384",
+        "protocol": "TLSv1.2",
+        "description": "ECDHE-ECDSA-AES256-GCM-SHA384  TLSv1.2 Kx=ECDH     Au=ECDSA Enc=AESGCM(256)            Mac=AEAD",
+        "strength_bits": 256,
+        "alg_bits": 256,
+        "aead": true,
+        "symmetric": "aes-256-gcm",
+        "digest": null,
+        "kea": "kx-ecdhe",
+        "auth": "auth-ecdsa"
+      },
+      {
+        "id": 50380848,
+        "name": "ECDHE-RSA-AES256-GCM-SHA384",
+        "protocol": "TLSv1.2",
+        "description": "ECDHE-RSA-AES256-GCM-SHA384    TLSv1.2 Kx=ECDH     Au=RSA   Enc=AESGCM(256)            Mac=AEAD",
+        "strength_bits": 256,
+        "alg_bits": 256,
+        "aead": true,
+        "symmetric": "aes-256-gcm",
+        "digest": null,
+        "kea": "kx-ecdhe",
+        "auth": "auth-rsa"
+      },
+      {
+        "id": 50380843,
+        "name": "ECDHE-ECDSA-AES128-GCM-SHA256",
+        "protocol": "TLSv1.2",
+        "description": "ECDHE-ECDSA-AES128-GCM-SHA256  TLSv1.2 Kx=ECDH     Au=ECDSA Enc=AESGCM(128)            Mac=AEAD",
+        "strength_bits": 128,
+        "alg_bits": 128,
+        "aead": true,
+        "symmetric": "aes-128-gcm",
+        "digest": null,
+        "kea": "kx-ecdhe",
+        "auth": "auth-ecdsa"
+      },
+      {
+        "id": 50380847,
+        "name": "ECDHE-RSA-AES128-GCM-SHA256",
+        "protocol": "TLSv1.2",
+        "description": "ECDHE-RSA-AES128-GCM-SHA256    TLSv1.2 Kx=ECDH     Au=RSA   Enc=AESGCM(128)            Mac=AEAD",
+        "strength_bits": 128,
+        "alg_bits": 128,
+        "aead": true,
+        "symmetric": "aes-128-gcm",
+        "digest": null,
+        "kea": "kx-ecdhe",
+        "auth": "auth-rsa"
+      },
+      {
+        "id": 50384041,
+        "name": "ECDHE-ECDSA-CHACHA20-POLY1305",
+        "protocol": "TLSv1.2",
+        "description": "ECDHE-ECDSA-CHACHA20-POLY1305  TLSv1.2 Kx=ECDH     Au=ECDSA Enc=CHACHA20/POLY1305(256) Mac=AEAD",
+        "strength_bits": 256,
+        "alg_bits": 256,
+        "aead": true,
+        "symmetric": "chacha20-poly1305",
+        "digest": null,
+        "kea": "kx-ecdhe",
+        "auth": "auth-ecdsa"
+      },
+      {
+        "id": 50384040,
+        "name": "ECDHE-RSA-CHACHA20-POLY1305",
+        "protocol": "TLSv1.2",
+        "description": "ECDHE-RSA-CHACHA20-POLY1305    TLSv1.2 Kx=ECDH     Au=RSA   Enc=CHACHA20/POLY1305(256) Mac=AEAD",
+        "strength_bits": 256,
+        "alg_bits": 256,
+        "aead": true,
+        "symmetric": "chacha20-poly1305",
+        "digest": null,
+        "kea": "kx-ecdhe",
+        "auth": "auth-rsa"
+      },
+      {
+        "id": 50380836,
+        "name": "ECDHE-ECDSA-AES256-SHA384",
+        "protocol": "TLSv1.2",
+        "description": "ECDHE-ECDSA-AES256-SHA384      TLSv1.2 Kx=ECDH     Au=ECDSA Enc=AES(256)               Mac=SHA384",
+        "strength_bits": 256,
+        "alg_bits": 256,
+        "aead": false,
+        "symmetric": "aes-256-cbc",
+        "digest": "sha384",
+        "kea": "kx-ecdhe",
+        "auth": "auth-ecdsa"
+      },
+      {
+        "id": 50380840,
+        "name": "ECDHE-RSA-AES256-SHA384",
+        "protocol": "TLSv1.2",
+        "description": "ECDHE-RSA-AES256-SHA384        TLSv1.2 Kx=ECDH     Au=RSA   Enc=AES(256)               Mac=SHA384",
+        "strength_bits": 256,
+        "alg_bits": 256,
+        "aead": false,
+        "symmetric": "aes-256-cbc",
+        "digest": "sha384",
+        "kea": "kx-ecdhe",
+        "auth": "auth-rsa"
+      },
+      {
+        "id": 50380835,
+        "name": "ECDHE-ECDSA-AES128-SHA256",
+        "protocol": "TLSv1.2",
+        "description": "ECDHE-ECDSA-AES128-SHA256      TLSv1.2 Kx=ECDH     Au=ECDSA Enc=AES(128)               Mac=SHA256",
+        "strength_bits": 128,
+        "alg_bits": 128,
+        "aead": false,
+        "symmetric": "aes-128-cbc",
+        "digest": "sha256",
+        "kea": "kx-ecdhe",
+        "auth": "auth-ecdsa"
+      },
+      {
+        "id": 50380839,
+        "name": "ECDHE-RSA-AES128-SHA256",
+        "protocol": "TLSv1.2",
+        "description": "ECDHE-RSA-AES128-SHA256        TLSv1.2 Kx=ECDH     Au=RSA   Enc=AES(128)               Mac=SHA256",
+        "strength_bits": 128,
+        "alg_bits": 128,
+        "aead": false,
+        "symmetric": "aes-128-cbc",
+        "digest": "sha256",
+        "kea": "kx-ecdhe",
+        "auth": "auth-rsa"
+      },
+      {
+        "id": 50331807,
+        "name": "DHE-RSA-AES256-GCM-SHA384",
+        "protocol": "TLSv1.2",
+        "description": "DHE-RSA-AES256-GCM-SHA384      TLSv1.2 Kx=DH       Au=RSA   Enc=AESGCM(256)            Mac=AEAD",
+        "strength_bits": 256,
+        "alg_bits": 256,
+        "aead": true,
+        "symmetric": "aes-256-gcm",
+        "digest": null,
+        "kea": "kx-dhe",
+        "auth": "auth-rsa"
+      },
+      {
+        "id": 50331806,
+        "name": "DHE-RSA-AES128-GCM-SHA256",
+        "protocol": "TLSv1.2",
+        "description": "DHE-RSA-AES128-GCM-SHA256      TLSv1.2 Kx=DH       Au=RSA   Enc=AESGCM(128)            Mac=AEAD",
+        "strength_bits": 128,
+        "alg_bits": 128,
+        "aead": true,
+        "symmetric": "aes-128-gcm",
+        "digest": null,
+        "kea": "kx-dhe",
+        "auth": "auth-rsa"
+      },
+      {
+        "id": 50331755,
+        "name": "DHE-RSA-AES256-SHA256",
+        "protocol": "TLSv1.2",
+        "description": "DHE-RSA-AES256-SHA256          TLSv1.2 Kx=DH       Au=RSA   Enc=AES(256)               Mac=SHA256",
+        "strength_bits": 256,
+        "alg_bits": 256,
+        "aead": false,
+        "symmetric": "aes-256-cbc",
+        "digest": "sha256",
+        "kea": "kx-dhe",
+        "auth": "auth-rsa"
+      },
+      {
+        "id": 50331751,
+        "name": "DHE-RSA-AES128-SHA256",
+        "protocol": "TLSv1.2",
+        "description": "DHE-RSA-AES128-SHA256          TLSv1.2 Kx=DH       Au=RSA   Enc=AES(128)               Mac=SHA256",
+        "strength_bits": 128,
+        "alg_bits": 128,
+        "aead": false,
+        "symmetric": "aes-128-cbc",
+        "digest": "sha256",
+        "kea": "kx-dhe",
+        "auth": "auth-rsa"
+      }
+    ]
+  },
+  "github_review": {
+    "open_dependency_alerts": 0,
+    "open_secret_alerts": 0,
+    "repository_advisories": 0,
+    "open_code_scanning_rules": [
+      "CIIBestPracticesID",
+      "MaintainedID",
+      "FuzzingID",
+      "BranchProtectionID"
+    ],
+    "non_pr_public_issues": 0,
+    "issues_pagination_reviewed": true
+  },
+  "static_analysis": {
+    "tool": "Bandit 1.8.6",
+    "scope": "application Python; all severities",
+    "errors": 0,
+    "counts": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 2010,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "findings": [],
+    "triage": "See security-assurance.md; exact source locations may move when this PR documents/fixes TLS resource lifetime."
+  },
+  "attestations": {
+    "basis": "explicit primary maintainer confirmation for this wave",
+    "secure_design_and_common_vulnerabilities": true,
+    "external_reports_previous_12_months": false,
+    "access_continuity": false
+  },
+  "unverified": [
+    "whole-project 80% statement coverage",
+    "reproducible release build",
+    "independent release signature verification",
+    "production deployment",
+    "hardware actuation",
+    "independent accessibility assessment",
+    "full native-runtime hardening"
+  ]
+}
