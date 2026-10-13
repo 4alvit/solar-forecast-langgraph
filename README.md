@@ -1,5 +1,7 @@
 # Solar Forecast LangGraph
 
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15459/badge)](https://www.bestpractices.dev/projects/15459)
+
 [![Fuzzing: RC only](https://img.shields.io/badge/Fuzzing-RC%20only-blue)](docs/fuzzing.md)
 
 [![CI](https://github.com/4alvit/solar-forecast-langgraph/actions/workflows/quality-gate.yml/badge.svg)](https://github.com/4alvit/solar-forecast-langgraph/actions/workflows/quality-gate.yml)
@@ -37,7 +39,7 @@ graph TD
     D --> E
     
     E --> F[Generate Forecast<br/>Physical + Statistical Ensemble]
-    F --> G[LLM Enhancement<br/>Weather pattern analysis]
+    F --> G[Optional LLM Enhancement<br/>Base forecast on failure or when disabled]
     G --> H[Inverter-Control Hook<br/>Pre-charge decision]
     H --> I[Final Forecast Output]
     
@@ -184,7 +186,7 @@ See [site_config.example.py](site_config.example.py) for full example.
 | `physical` | Clear-sky model + cloud adjustment | No historical data |
 | `statistical` | ML model on historical data | Sufficient history (30+ days) |
 | `ensemble` | Weighted: 60% physical + 40% statistical | Default; comparative accuracy is not yet established |
-| `llm_enhanced` | LLM analyzes weather patterns | Future: complex weather |
+| `llm_enhanced` | Optional LLM analysis of weather patterns | Requires API credentials; field accuracy is not yet established |
 
 ---
 
@@ -308,7 +310,7 @@ solar-forecast-langgraph/
 
 ## Roadmap
 
-- [ ] LLM-enhanced forecasting (weather pattern analysis)
+- [ ] Measure optional LLM forecast adjustments against held-out field data
 - [ ] Automated model retraining scheduler
 - [ ] Prometheus metrics export
 - [ ] Grafana dashboard template
@@ -349,6 +351,8 @@ boundaries, and the [OpenSSF evidence index](docs/openssf-evidence.md) for asses
 scope and verification.
 
 HTTPS transport and runtime requirements are described in [TLS policy](docs/tls-policy.md).
+
+Project responsibilities and decisions are documented in [Governance](GOVERNANCE.md), expected conduct in the [Code of conduct](CODE_OF_CONDUCT.md), and priorities in the [Roadmap](ROADMAP.md). The [security assurance case](docs/security-assurance.md) records controls, evidence and unresolved limits.
 
 ## Release-candidate fuzzing
 

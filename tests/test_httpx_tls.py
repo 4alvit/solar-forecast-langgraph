@@ -127,3 +127,46 @@ async def test_environment_routing_and_default_limits_match_httpx(monkeypatch):
                     other._pool._max_keepalive_connections
                     == transport._pool._max_keepalive_connections
                 )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("case", ["strong", "weak-2047-root", "untrusted", "wrong-host"])
+async def test_llm_transport_checks_peer_before_sending_token(chains, monkeypatch, case):
+    """Exercise the real LangChain/OpenAI HTTP path against a local TLS peer."""
+    import langchain_openai
+    from openai import APIConnectionError
+    from test_model import create_test_site, create_test_weather_forecast
+
+    from solar_forecast.model import ForecastMethod, ForecastModel, enhance_with_llm
+
+    original = langchain_openai.ChatOpenAI
+    # The peer accepts one connection: skip SDK retries, not TLS or SDK code.
+    monkeypatch.setattr(
+        langchain_openai, "ChatOpenAI", lambda **kwargs: original(max_retries=0, **kwargs)
+    )
+    chain = chains.get(case, chains["strong"])
+    version = ssl.TLSVersion.TLSv1_2
+    calibrate(chain, version)
+    ca = chains["strong-ec"][2] if case == "untrusted" else chain[2]
+    monkeypatch.setenv("SSL_CERT_FILE", str(ca))
+    monkeypatch.setenv("OPENAI_API_KEY", "synthetic-llm-token")
+    site = create_test_site()
+    weather = create_test_weather_forecast(1)
+    forecast = ForecastModel(site).forecast(weather)
+    body = (
+        b'{"id":"synthetic","object":"chat.completion","created":0,"model":"test",'
+        b'"choices":[{"index":0,"message":{"role":"assistant","content":"{}"},'
+        b'"finish_reason":"stop"}]}'
+    )
+    with peer(chain, version, response_body=body) as (port, observed):
+        host = "127.0.0.1" if case == "wrong-host" else "localhost"
+        monkeypatch.setenv("OPENAI_API_BASE", f"https://{host}:{port}/v1")
+        if case == "strong":
+            result = await enhance_with_llm(forecast, weather, site, site.panels[0])
+            assert result.method == ForecastMethod.LLM_ENHANCED
+        else:
+            with pytest.raises(APIConnectionError):
+                await enhance_with_llm(forecast, weather, site, site.panels[0])
+    assert bool(observed["application_bytes"]) == (case == "strong")
+    if case == "strong":
+        assert b"synthetic-llm-token" in observed["application_bytes"]

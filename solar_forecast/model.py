@@ -406,8 +406,6 @@ async def enhance_with_llm(
     # Prepare context for LLM
     context = _build_llm_context(base_forecast, weather, site_config, panel_config, recent_actuals)
 
-    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0, api_key=SecretStr(api_key))
-
     system_prompt = """You are a solar forecasting expert. Analyze the provided weather forecast,
     solar panel configuration, and historical generation data to refine the base forecast.
 
@@ -419,12 +417,23 @@ async def enhance_with_llm(
 
     Be conservative. Only make adjustments when you have clear reasoning from the data."""
 
-    response = await llm.ainvoke(
-        [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=context),
-        ]
-    )
+    # The optional LLM path must preserve the same verified-chain policy as
+    # weather/history requests, and release its pool on errors or cancellation.
+    from .httpx_tls import async_client
+
+    async with async_client(timeout=60.0) as http_client:
+        llm = ChatOpenAI(
+            model="gpt-4o-mini",
+            temperature=0,
+            api_key=SecretStr(api_key),
+            http_async_client=http_client,
+        )
+        response = await llm.ainvoke(
+            [
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=context),
+            ]
+        )
 
     import json
 
