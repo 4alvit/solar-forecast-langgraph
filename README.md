@@ -36,7 +36,7 @@ graph TD
     D --> E
     
     E --> F[Generate Forecast<br/>Physical + Statistical Ensemble]
-    F --> G[LLM Enhancement<br/>Weather pattern analysis]
+    F --> G[Optional LLM Enhancement<br/>Weather pattern analysis]
     G --> H[Inverter-Control Hook<br/>Pre-charge decision]
     H --> I[Final Forecast Output]
     
