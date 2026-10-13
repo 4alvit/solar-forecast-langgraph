@@ -355,3 +355,6 @@ HTTPS transport and runtime requirements are described in [TLS policy](docs/tls-
 The production panel-configuration validator and effective-capacity calculation receive synthetic JSON. Accepted configuration must serialize losslessly and yield finite nonnegative capacity bounded by rated DC capacity. No weather service, LLM, inverter or MQTT broker is contacted.
 
 [RC-only fuzzing policy, local reproduction and failure handling](docs/fuzzing.md).
+
+Release artifact identity, build receipts and local reproduction are documented in
+[release packaging](docs/release-packaging.md).

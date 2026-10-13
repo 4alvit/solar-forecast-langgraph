@@ -4,7 +4,9 @@
 This document defines the release policy for **4alvit/solar-forecast-langgraph**. The
 [release runbook](docs/release-workflow.md) contains commands, prerequisites and
 recovery steps. The [machine-readable policy](.release-policy.json) declares the
-actual validation workflows, version source and project-specific blockers.
+actual validation workflows, version source and project-specific blockers. The
+[canonical application runbook](https://github.com/victron-venus/venus-os-ci-toolkit/blob/main/docs/APPLICATION_RELEASES.md)
+covers shared queue behavior and recovery after workflow changes.
 
 **Release readiness:** channels are implemented; activation and every required gate must pass before publication.
 
@@ -18,6 +20,8 @@ not publish stable releases. Every repository versions and releases independentl
 The committed base version comes from `pyproject.toml`. A release preparation PR
 updates that version and any required native/package companion versions together.
 Version numbers are explicit; a commit message does not automatically select one.
+
+Use `python3 scripts/release.py prepare-version --pr` to synchronize the declared source fields. A saved release plan fixes the full candidate version before compilation. See [version plans](docs/VERSIONING.md) for adapters, counters, retries and provenance. Automatic nightlies keep all checks and builds but skip duplicate publication when retained evidence qualifies a beta/RC/stable with the same source, policy and base. Manual nightly requests still publish.
 
 Use [Semantic Versioning](https://semver.org/): patch for compatible fixes, minor
 for compatible functionality and major for incompatible changes. State changes to
@@ -43,12 +47,18 @@ The `v` prefix belongs to the Git tag, not the numeric base version.
 
 Nightly and beta are previews; neither is directly promotable to stable. An RC
 may be requested without a previous beta. Channel order is a workflow policy,
-not a comparison of tag strings. Native binaries/packages retain the committed
-base version; the release tag and manifest identify their channel and source.
+not a comparison of tag strings. Declared adapters map the saved full version to each package format. Native OS fields may retain the numeric base while the application embeds its full identity. RC packages under promote-bytes already use the final base; their original candidate identity remains provenance.
+
+
+
+Once the committed base has a stable tag, automatic push betas report
+`version-required`: quality and security checks still run, while packaging and
+publication are skipped. Prepare the next committed base through a reviewed PR.
+Explicit beta/RC requests still reject an occupied base; nightlies are unchanged.
 
 ## Required validation and evidence
 
-1. The aggregate **CI gate** requires every workflow declared in the policy to
+1. The aggregate **CI gate** requires every workflow selected by the source policy to
    succeed. Failed, missing, canceled or skipped required checks block the gate.
 2. Candidate publication additionally requires the complete platform build matrix
    and **Release gate**. Artifacts from a partially successful matrix are not a
@@ -60,8 +70,8 @@ base version; the release tag and manifest identify their channel and source.
    qualification at the RC's source revision, retained evidence and every asset.
    Missing or expired evidence requires a new RC.
 
-There is no force-publish, replace-tag or skip-checks option. A later policy edit
-cannot retroactively qualify an older RC. Build artifact retention is declared by
+The release CLI has no force-publish, replace-tag or skip-checks option. A later
+policy edit cannot retroactively qualify an older RC. Build artifact retention is declared by
 each build adapter (currently 14 or 30 days across the fleet);
 published candidate assets are not automatically deleted by this workflow.
 
@@ -71,9 +81,8 @@ The maintainer requesting the RC owns its release notes and acceptance evidence.
 Before requesting stable, the maintainer must:
 
 - Review the changes, compatibility impact, known issues and upgrade/recovery
-  instructions. Update `CHANGELOG.md` in the release source commit under one
-  `## [X.Y.Z]` base-version heading, with nonempty `### Upgrade` and `### Security`
-  sections. The categories in
+  instructions. Update the existing changelog when present; otherwise include a
+  human-readable summary in the release preparation PR. The categories in
   [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) are a useful format.
 - Test the exact RC assets on the intended targets, including applicable hardware,
   operating systems, integrations and configuration/data migrations. Record the
@@ -87,14 +96,10 @@ Before requesting stable, the maintainer must:
 The current application adapter uses the `release` environment's required reviewer
 on public repositories, where that capability is available without a paid private
 repository security plan. A single maintainer may request and approve a release;
-this is not an independently enforced two-person review policy. Human acceptance
+this is not an independently enforced two-person review policy. Administrative
+bypass allowed by the owner's GitHub environment policy is separate from the CLI
+and does not disable the publisher's provenance checks. Human acceptance
 and release-note quality remain maintainer responsibilities, not inferred CI results.
-
-Release section headings use ATX syntax (`#`, `##`, `###`), with up to three
-leading spaces. Each section ends at the next heading of the same or a higher
-level. Underlined Setext headings inside the selected version section are
-rejected; use ATX headings or put a blank line before a thematic `---` separator.
-Comments and code examples do not define release sections.
 
 ## Publication and deployment
 
@@ -112,8 +117,9 @@ trigger production deployment. See the runbook for this repository's adapters.
 ## Hotfixes, rollback and support
 
 A hotfix follows the same reviewed change, checks, RC acceptance and stable
-promotion path with a new patch version. There is no emergency bypass. The current
-pipeline releases from the default branch only; backport release branches require
+promotion path with a new patch version. The release CLI has no emergency
+skip-checks path. The current pipeline releases from the default branch only;
+backport release branches require
 an explicitly reviewed extension of the policy and are not implicitly supported.
 
 For rollback, redeploy a previously accepted immutable artifact using the project's
@@ -140,11 +146,3 @@ Changes to the lifecycle, required gates or version/asset mappings go through PR
 review together with the corresponding workflow changes. Update the toolkit
 template and `.release-policy.json`, then regenerate and review this document and
 the runbook. The README links here rather than duplicating the release procedure.
-
-## Release-candidate fuzz gate
-
-Public RCs run the shared, bounded fuzz gate declared in `.github/fuzz.json`.
-A failing campaign blocks that RC; fix and reissue an RC rather than bypassing it.
-Beta, pull-request, push and scheduled workflows do not start fuzz campaigns.
-Stable promotion uses the accepted RC source and evidence. See
-[the full fuzzing guide](docs/fuzzing.md) for target scope, isolation, receipts and reproduction.

@@ -27,5 +27,62 @@
   ],
   "visibility": "public",
   "single_entry_ci": true,
-  "release_notes": "CHANGELOG.md"
+  "release_notes": "CHANGELOG.md",
+  "versioning": {
+    "schema": 1,
+    "promotion": "promote-bytes",
+    "files": [
+      {
+        "path": "pyproject.toml",
+        "format": "toml",
+        "field": "project.version",
+        "package": "solar-forecast-langgraph",
+        "value": "package",
+        "ecosystem": "pep440"
+      },
+      {
+        "path": "uv.lock",
+        "format": "uv-lock",
+        "package": "solar-forecast-langgraph",
+        "value": "package",
+        "ecosystem": "pep440"
+      }
+    ],
+    "artifacts": [
+      {
+        "path": "solar-forecast-langgraph-*.tar.gz",
+        "format": "tar-toml",
+        "member": "solar-forecast-langgraph/pyproject.toml",
+        "field": "project.version",
+        "package": "solar-forecast-langgraph",
+        "value": "package",
+        "ecosystem": "pep440"
+      },
+      {
+        "path": "*.whl",
+        "format": "wheel",
+        "package": "solar-forecast-langgraph",
+        "value": "package",
+        "ecosystem": "pep440"
+      },
+      {
+        "path": "solar_forecast_langgraph-*.tar.gz",
+        "format": "sdist",
+        "package": "solar-forecast-langgraph",
+        "value": "package",
+        "ecosystem": "pep440"
+      },
+      {
+        "path": "solar-forecast-langgraph-container.oci.tar",
+        "format": "oci",
+        "field": [
+          "config",
+          "Labels",
+          "org.opencontainers.image.version"
+        ],
+        "value": "package"
+      }
+    ],
+    "toolkit_revision": "35d84867c34262567801c44a0e4ec9aa5159326e"
+  }
 }
