@@ -1,6 +1,9 @@
 # Solar Forecast LangGraph
 
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15459/badge)](https://www.bestpractices.dev/projects/15459)
+
+[![Fuzzing: RC only](https://img.shields.io/badge/Fuzzing-RC%20only-blue)](docs/fuzzing.md)
+
 [![CI](https://github.com/4alvit/solar-forecast-langgraph/actions/workflows/quality-gate.yml/badge.svg)](https://github.com/4alvit/solar-forecast-langgraph/actions/workflows/quality-gate.yml)
 [![Coverage](https://codecov.io/gh/4alvit/solar-forecast-langgraph/branch/main/graph/badge.svg)](https://codecov.io/gh/4alvit/solar-forecast-langgraph)
 [![PyPI](https://img.shields.io/pypi/v/solar-forecast-langgraph.svg)](https://pypi.org/project/solar-forecast-langgraph/)
@@ -36,7 +39,7 @@ graph TD
     D --> E
     
     E --> F[Generate Forecast<br/>Physical + Statistical Ensemble]
-    F --> G[Optional LLM Enhancement<br/>Weather pattern analysis]
+    F --> G[Optional LLM Enhancement<br/>Base forecast on failure or when disabled]
     G --> H[Inverter-Control Hook<br/>Pre-charge decision]
     H --> I[Final Forecast Output]
     
@@ -350,3 +353,12 @@ scope and verification.
 HTTPS transport and runtime requirements are described in [TLS policy](docs/tls-policy.md).
 
 Project responsibilities and decisions are documented in [Governance](GOVERNANCE.md), expected conduct in the [Code of conduct](CODE_OF_CONDUCT.md), and priorities in the [Roadmap](ROADMAP.md). The [security assurance case](docs/security-assurance.md) records controls, evidence and unresolved limits.
+
+## Release-candidate fuzzing
+
+The production panel-configuration validator and effective-capacity calculation receive synthetic JSON. Accepted configuration must serialize losslessly and yield finite nonnegative capacity bounded by rated DC capacity. No weather service, LLM, inverter or MQTT broker is contacted.
+
+[RC-only fuzzing policy, local reproduction and failure handling](docs/fuzzing.md).
+
+Release artifact identity, build receipts and local reproduction are documented in
+[release packaging](docs/release-packaging.md).

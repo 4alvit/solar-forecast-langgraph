@@ -64,3 +64,16 @@ release-dist/
 !CHANGELOG.md
 
 !CODE_OF_CONDUCT.md
+
+# Isolated RC fuzz runtime and local diagnostic inputs
+.fuzz-venv/
+crash-*
+timeout-*
+oom-*
+
+# Frozen release overlays and staged receipts are local build outputs
+.release-plan.json
+.release-inputs.json
+release-assets/
+native-inputs/
+native-output/

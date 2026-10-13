@@ -1,6 +1,6 @@
 # Security assurance and evidence limits
 
-Assessment date: 2026-10-13. Application evidence was collected from source `65a2c87d3e98f3f4e2cf8c10a11ff8665c7145ea`. The threat model assumes a maintained Python runtime, trusted host/configuration, and operators who control deployment credentials. The claim is bounded risk reduction through concrete controls and tests, not a formal security certification.
+Assessment date: 2026-10-13. Application and tooling evidence includes the integration of release-tooling PR #131 at `6f6dc0af54c5a2cb41cda9cf90a8347cb8474f6c` plus this assessment’s changes; the receipt records exact per-file source hashes. The threat model assumes a maintained Python runtime, trusted host/configuration, and operators who control deployment credentials. The claim is bounded risk reduction through concrete controls and tests, not a formal security certification.
 
 ## Data flow and trust boundaries
 
@@ -30,4 +30,6 @@ The owner confirmed secure-design and common Python/network-vulnerability knowle
 
 ## Coverage scope
 
-The combined application and release/workflow/security tests cover 1849 of 2826 executable statements across all tracked non-test Python files (65.43%). Previously unmeasured Python files receive zero credit. Shell, Docker and workflow-language statements are not measured by this figure. The Silver whole-project 80% criterion remains unmet.
+The integrated application and release/workflow/security suite passed 854 tests, with one environment-dependent skip and 1189 passed subtests. Two Bandit-discovery checks initially lacked the Bandit module after dependency synchronization; installing the pinned test prerequisite and rerunning those two checks passed both. The receipt records this environment repair.
+
+The combined coverage measurement covers 5349 of 6574 executable statements across all tracked non-test Python files (81.37%), including release-tooling PR #131. Previously unmeasured Python files receive zero credit. Shell, Docker, workflow-language and native dependency statements are not measured by this figure. The Silver whole-project 80% criterion remains unmet.
