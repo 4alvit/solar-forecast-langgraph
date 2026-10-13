@@ -12,9 +12,14 @@ import tempfile
 import zipfile
 from email.parser import BytesParser
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from publish_verified import pypi_commands, verified_assets
-from release_control import GitHub, ReleaseError, digest, require
+if TYPE_CHECKING or __package__:
+    from .publish_verified import pypi_commands, verified_assets
+    from .release_control import GitHub, ReleaseError, digest, require
+else:
+    from publish_verified import pypi_commands, verified_assets
+    from release_control import GitHub, ReleaseError, digest, require
 
 ROOT = Path(__file__).resolve().parents[1]
 REPOSITORY = "4alvit/solar-forecast-langgraph"
