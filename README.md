@@ -1,5 +1,7 @@
 # Solar Forecast LangGraph
 
+[![Fuzzing: RC only](https://img.shields.io/badge/Fuzzing-RC%20only-blue)](docs/fuzzing.md)
+
 [![CI](https://github.com/4alvit/solar-forecast-langgraph/actions/workflows/quality-gate.yml/badge.svg)](https://github.com/4alvit/solar-forecast-langgraph/actions/workflows/quality-gate.yml)
 [![Coverage](https://codecov.io/gh/4alvit/solar-forecast-langgraph/branch/main/graph/badge.svg)](https://codecov.io/gh/4alvit/solar-forecast-langgraph)
 [![PyPI](https://img.shields.io/pypi/v/solar-forecast-langgraph.svg)](https://pypi.org/project/solar-forecast-langgraph/)
@@ -347,3 +349,12 @@ boundaries, and the [OpenSSF evidence index](docs/openssf-evidence.md) for asses
 scope and verification.
 
 HTTPS transport and runtime requirements are described in [TLS policy](docs/tls-policy.md).
+
+## Release-candidate fuzzing
+
+The production panel-configuration validator and effective-capacity calculation receive synthetic JSON. Accepted configuration must serialize losslessly and yield finite nonnegative capacity bounded by rated DC capacity. No weather service, LLM, inverter or MQTT broker is contacted.
+
+[RC-only fuzzing policy, local reproduction and failure handling](docs/fuzzing.md).
+
+Release artifact identity, build receipts and local reproduction are documented in
+[release packaging](docs/release-packaging.md).

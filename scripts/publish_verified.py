@@ -23,20 +23,36 @@ import tempfile
 from pathlib import Path
 from urllib.parse import quote
 
-from release_control import (
-    MANIFEST,
-    GitHub,
-    ReleaseError,
-    digest,
-    positive,
-    repository_info,
-    require,
-    require_release_policy,
-    source_policy_snapshot,
-    validate_manifest,
-    validate_run,
-    verify_evidence,
-)
+if __package__:
+    from .release_control import (
+        MANIFEST,
+        GitHub,
+        ReleaseError,
+        download_asset,
+        positive,
+        repository_info,
+        require,
+        require_release_policy,
+        source_policy_snapshot,
+        validate_manifest,
+        validate_run,
+        verify_evidence,
+    )
+else:
+    from release_control import (
+        MANIFEST,
+        GitHub,
+        ReleaseError,
+        download_asset,
+        positive,
+        repository_info,
+        require,
+        require_release_policy,
+        source_policy_snapshot,
+        validate_manifest,
+        validate_run,
+        verify_evidence,
+    )
 
 ROOT = Path(__file__).resolve().parents[1]
 DOCKER_TRANSPORT = "docker://"
@@ -61,7 +77,9 @@ def verified_assets(gh, tag, directory):
     require(len(manifests) == 1, "Stable release has no unambiguous RC manifest")
     raw = gh.binary(f"releases/assets/{manifests[0]['id']}")
     candidate = json.loads(raw)
-    manifest = validate_manifest(raw, gh.repo, candidate.get("tag", ""))
+    manifest = validate_manifest(
+        raw, gh.repo, candidate.get("tag", ""), allow_final=True
+    )
     original_policy = source_policy_snapshot(gh, manifest["source_sha"])
     require_release_policy(original_policy["data"], gh.repo, qualified=True)
     require(
@@ -85,6 +103,19 @@ def verified_assets(gh, tag, directory):
         gh, run, info, manifest["source_sha"], manifest["run_attempt"], completed=True
     )
     verify_evidence(gh, manifest, raw)
+    if manifest["channel"] == "stable":
+        # Legacy consumers do not vendor optional versioning modules.
+        # pylint: disable-next=import-outside-toplevel
+        if __package__:
+            from .release_versioned import verified_rc
+        else:
+            from release_versioned import verified_rc
+
+        _, parent = verified_rc(gh, manifest["derived_from_rc"]["tag"], info, run)
+        require(
+            parent == manifest["derived_from_rc"],
+            "Final package RC provenance mismatch",
+        )
     expected = {item["name"]: item for item in manifest["assets"]}
     require(
         len(assets) == len(expected) + 1
@@ -95,14 +126,29 @@ def verified_assets(gh, tag, directory):
         if asset["name"] == MANIFEST:
             continue
         item = expected[asset["name"]]
-        content = gh.binary(f"releases/assets/{positive(asset['id'], 'asset ID')}")
+        identity = download_asset(gh, asset["id"], directory / asset["name"])
         require(
             asset.get("state") == "uploaded"
-            and len(content) == item["size"]
-            and digest(content) == item["sha256"],
+            and identity["size"] == item["size"]
+            and identity["sha256"] == item["sha256"],
             f"Stable payload changed: {asset['name']}",
         )
-        (directory / asset["name"]).write_bytes(content)
+    if manifest.get("version_plan"):
+        # pylint: disable-next=import-outside-toplevel
+        if __package__:
+            from .version_receipt import verify_declared_artifacts, verify_receipts
+        else:
+            from version_receipt import verify_declared_artifacts, verify_receipts
+
+        verify_receipts(
+            directory,
+            manifest["version_plan"],
+            manifest["assets"],
+            original_policy["data"],
+        )
+        verify_declared_artifacts(
+            directory, original_policy["data"], manifest["version_plan"]
+        )
     return manifest
 
 
@@ -132,9 +178,14 @@ def require_unpublished_version(image, version):
             version not in json.loads(check.stdout).get("Tags", []),
             f"Container version already exists: {image}:{version}",
         )
-    elif (
-        "NAME_UNKNOWN" not in check.stderr
-        and "repository does not exist" not in check.stderr
+    # Skopeo can render the registry's NAME_UNKNOWN code as "name unknown".
+    # Require an unambiguous terminal diagnostic: a missing-repository phrase
+    # followed by a login or permission warning is not proof of absence.
+    elif not re.search(
+        r"(?:\bNAME_UNKNOWN\b(?:: repository name not known to registry)?"
+        r"|\bname unknown\b|\brepository does not exist\b)[\"']?\s*$",
+        check.stderr,
+        re.IGNORECASE,
     ):
         raise ReleaseError(
             "Cannot establish registry tag inventory; authenticate and retry: " + image
