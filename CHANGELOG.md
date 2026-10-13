@@ -1,5 +1,19 @@
 # Changelog
 
+## [Unreleased]
+
+### Security
+
+- Close the owned TLS socket on a fatal native handshake error while retaining
+  sockets when a nonblocking handshake requests another read or write.
+- Apply verified certificate-chain key minima to optional LLM API calls and close their HTTP connection pool on completion or failure.
+
+### Changed
+
+- Document project governance, conduct, roadmap and OpenSSF assessment evidence.
+- Treat unexpected Python test warnings as failures.
+
+
 ## [0.1.5]
 
 ### Changed

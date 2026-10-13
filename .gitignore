@@ -63,6 +63,8 @@ release-dist/
 
 !CHANGELOG.md
 
+!CODE_OF_CONDUCT.md
+
 # Isolated RC fuzz runtime and local diagnostic inputs
 .fuzz-venv/
 crash-*

@@ -1,6 +1,8 @@
 """Tests for workflow module."""
 
+import asyncio
 import os
+import ssl
 import time
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, patch
@@ -812,3 +814,33 @@ async def test_fetch_weather_unknown_panel_records_error_without_request():
         result = await fetch_weather_node(state)
     assert result.errors == ["Weather fetch failed: Unknown panel ID: missing-panel"]
     client.return_value.fetch_forecast.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure", [RuntimeError, ssl.SSLError, asyncio.CancelledError])
+async def test_optional_enhancement_failure_boundary(failure):
+    """The workflow preserves base data on provider/TLS failure, never cancellation."""
+    base = _forecast_for_day(1000, datetime(2026, 10, 13, tzinfo=UTC))
+    state = WorkflowState(
+        site_config=create_test_site(),
+        panel_id="test-1",
+        base_forecast=base,
+        weather_forecast=create_mock_weather_forecast(),
+    )
+    with patch(
+        "solar_forecast.model.enhance_with_llm", new=AsyncMock(side_effect=failure("synthetic"))
+    ):
+        if failure is asyncio.CancelledError:
+            with pytest.raises(asyncio.CancelledError):
+                await enhance_forecast_node(state)
+            assert state.enhanced_forecast is None
+            assert not state.warnings
+            assert "enhance_forecast" not in state.completed_steps
+        else:
+            result = await enhance_forecast_node(state)
+            assert result.enhanced_forecast is base
+            assert result.enhanced_forecast.points
+            assert result.enhanced_forecast.total_energy_wh() == 1000
+            assert len(result.warnings) == 1
+            assert "LLM enhancement failed" in result.warnings[0]
+            assert "enhance_forecast" in result.completed_steps
