@@ -183,7 +183,7 @@ See [site_config.example.py](site_config.example.py) for full example.
 | `physical` | Clear-sky model + cloud adjustment | No historical data |
 | `statistical` | ML model on historical data | Sufficient history (30+ days) |
 | `ensemble` | Weighted: 60% physical + 40% statistical | Default; comparative accuracy is not yet established |
-| `llm_enhanced` | LLM analyzes weather patterns | Future: complex weather |
+| `llm_enhanced` | Optional LLM analysis of weather patterns | Requires API credentials; field accuracy is not yet established |
 
 ---
 
@@ -307,7 +307,7 @@ solar-forecast-langgraph/
 
 ## Roadmap
 
-- [ ] LLM-enhanced forecasting (weather pattern analysis)
+- [ ] Measure optional LLM forecast adjustments against held-out field data
 - [ ] Automated model retraining scheduler
 - [ ] Prometheus metrics export
 - [ ] Grafana dashboard template
