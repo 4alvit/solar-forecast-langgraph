@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 class PanelConfig(BaseModel):
     """Configuration for a solar panel array."""
 
-    model_config = {"extra": "forbid"}
+    model_config = {"extra": "forbid", "allow_inf_nan": False}
 
     # Panel identification
     name: str = Field(..., description="Human-readable name for this panel array")

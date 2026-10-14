@@ -1,5 +1,11 @@
 """Tests for config module."""
 
+import json
+from pathlib import Path
+
+import pytest
+from pydantic import ValidationError
+
 from solar_forecast.config import DEFAULT_SITE, PanelConfig, SiteConfig
 
 
@@ -202,3 +208,28 @@ def test_default_site():
     assert len(DEFAULT_SITE.panels) == 2
     assert DEFAULT_SITE.panel_by_id("south-roof") is not None
     assert DEFAULT_SITE.panel_by_id("west-roof") is not None
+
+
+@pytest.mark.parametrize("field", ["capacity_kw", "temperature_coefficient"])
+@pytest.mark.parametrize("value", [float("inf"), float("-inf"), float("nan")])
+def test_nonfinite_panel_values_are_rejected(field, value):
+    payload = DEFAULT_SITE.panels[0].model_dump()
+    payload[field] = value
+    for validate, argument in (
+        (PanelConfig.model_validate, payload),
+        (PanelConfig.model_validate_json, json.dumps(payload)),
+    ):
+        with pytest.raises(ValidationError, match="finite number"):
+            validate(argument)
+
+
+def test_overflowing_capacity_regression_seed_is_rejected():
+    seed = Path(__file__).parents[1] / "fuzz/corpus/panels/nonfinite-capacity"
+    with pytest.raises(ValidationError, match="finite number"):
+        PanelConfig.model_validate_json(seed.read_bytes())
+
+
+def test_finite_panel_configuration_preserves_json_round_trip():
+    panel = DEFAULT_SITE.panels[0]
+    assert PanelConfig.model_validate_json(panel.model_dump_json()) == panel
+    assert 0 < panel.effective_capacity_kw() <= panel.capacity_kw
