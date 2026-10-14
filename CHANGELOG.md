@@ -16,6 +16,12 @@
 
 ## [0.1.5]
 
+### Fixed
+
+Reject nonfinite panel configuration values, including overflowing JSON capacity
+exponents, before forecast calculations or JSON serialization. Existing finite
+configuration values and their round trips remain unchanged.
+
 ### Changed
 
 Start the next beta cycle after the published 0.1.4 release. This candidate includes explicit HTTPX TLS configuration, platform certificate handling, CLI version reporting, and stricter artifact and publication verification added since 0.1.4.
