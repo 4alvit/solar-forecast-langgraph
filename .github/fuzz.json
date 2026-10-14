@@ -29,7 +29,23 @@
         "-max_len=4096"
       ],
       "seconds": 60,
-      "corpus": "fuzz/corpus/panels"
+      "corpus": "fuzz/corpus/panels",
+      "instrumentation": [
+        {
+          "module": "solar_forecast.config",
+          "functions": [
+            "PanelConfig.effective_capacity_kw"
+          ]
+        }
+      ]
     }
+  ],
+  "preflight-paths": [
+    ".github/requirements-fuzz.in",
+    "Dockerfile",
+    "fuzz",
+    "pyproject.toml",
+    "solar_forecast",
+    "uv.lock"
   ]
 }
