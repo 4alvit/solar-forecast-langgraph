@@ -1,5 +1,9 @@
 # Release-candidate fuzz testing
 
+See the [illustrated RC fuzzing process and verified rollout results](https://github.com/victron-venus/venus-os-ci-toolkit/blob/main/docs/rc-fuzzing-results.md)
+for the shared release flow, evidence requirements and a dated cross-project
+snapshot. The project-specific scope and reproduction guidance below still apply.
+
 ## Scope and assertions
 
 **panels.** The production panel-configuration validator and effective-capacity calculation receive synthetic JSON. Accepted configuration must serialize losslessly and yield finite nonnegative capacity bounded by rated DC capacity. No weather service, LLM, inverter or MQTT broker is contacted.
