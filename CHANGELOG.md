@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.7] - 2026-10-17
+
+### Changed
+
+- Clarify where RC fuzz safeguards execute and link the shared illustrated process and result guides; these documentation links were added after the published v0.1.6 source.
+
+### Upgrade
+
+This documentation release preserves runtime behavior and configuration from 0.1.6. Retain site configuration, broker credentials and the previous accepted package for rollback.
+
+### Security
+
+No new runtime security fix is claimed. Existing TLS checks and source-bound RC fuzzing remain required; live site and broker acceptance remains deployment-specific.
+
 ## [0.1.6] - 2026-10-14
 
 ### Changed
