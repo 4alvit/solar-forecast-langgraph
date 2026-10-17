@@ -4,7 +4,7 @@
 
 ### Changed
 
-- Clarify where RC fuzz safeguards execute and add illustrated process and result guides.
+- Clarify where RC fuzz safeguards execute and link the shared illustrated process and result guides; these documentation links were added after the published v0.1.6 source.
 
 ### Upgrade
 
