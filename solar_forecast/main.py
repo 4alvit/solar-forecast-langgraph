@@ -118,8 +118,6 @@ async def main_async(
     if output_path:
         out_data = forecast.model_dump(mode="json")
         out_data["generated_at"] = forecast.generated_at.isoformat()
-        for p in out_data["points"]:
-            p["timestamp"] = p["timestamp"]
 
         if output_format == "json":
             await aio_write_json(output_path, out_data)
