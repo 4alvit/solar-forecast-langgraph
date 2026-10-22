@@ -1,0 +1,105 @@
+{
+  "reference": "pvlib.irradiance.get_total_irradiance",
+  "version": "0.13.1",
+  "model": "isotropic",
+  "albedo": 0.2,
+  "direct_conversion": "direct_horizontal = dni * cos(radians(zenith))",
+  "cases": [
+    {
+      "name": "horizontal-mixed",
+      "tilt": 0,
+      "panel_azimuth": 180,
+      "zenith": 30,
+      "solar_azimuth": 180,
+      "dni": 600,
+      "direct_horizontal": 519.6152422706632,
+      "ghi": 719.6152422706632,
+      "dhi": 200,
+      "poa_global": 719.6152422706632
+    },
+    {
+      "name": "tilted-facing-sun",
+      "tilt": 35,
+      "panel_azimuth": 180,
+      "zenith": 30,
+      "solar_azimuth": 180,
+      "dni": 600,
+      "direct_horizontal": 519.6152422706632,
+      "ghi": 719.6152422706632,
+      "dhi": 200,
+      "poa_global": 792.6461178302596
+    },
+    {
+      "name": "tilted-back-facing",
+      "tilt": 80,
+      "panel_azimuth": 0,
+      "zenith": 60,
+      "solar_azimuth": 180,
+      "dni": 600,
+      "direct_horizontal": 300.00000000000006,
+      "ghi": 400.00000000000006,
+      "dhi": 100,
+      "poa_global": 91.73648177666931
+    },
+    {
+      "name": "tilted-diffuse-only",
+      "tilt": 35,
+      "panel_azimuth": 180,
+      "zenith": 45,
+      "solar_azimuth": 180,
+      "dni": 0,
+      "direct_horizontal": 0.0,
+      "ghi": 800.0,
+      "dhi": 800,
+      "poa_global": 742.1286541724774
+    },
+    {
+      "name": "near-horizon-facing",
+      "tilt": 35,
+      "panel_azimuth": 180,
+      "zenith": 89.999,
+      "solar_azimuth": 180,
+      "dni": 600,
+      "direct_horizontal": 0.010471975511443762,
+      "ghi": 20.010471975511443,
+      "dhi": 20,
+      "poa_global": 362.7078456362074
+    },
+    {
+      "name": "near-horizon-flat",
+      "tilt": 0,
+      "panel_azimuth": 180,
+      "zenith": 89.999,
+      "solar_azimuth": 180,
+      "dni": 600,
+      "direct_horizontal": 0.010471975511443762,
+      "ghi": 20.010471975511443,
+      "dhi": 20,
+      "poa_global": 20.010471975511443
+    },
+    {
+      "name": "sunrise-oblique",
+      "tilt": 35,
+      "panel_azimuth": 180,
+      "zenith": 89,
+      "solar_azimuth": 90,
+      "dni": 400,
+      "direct_horizontal": 6.980962574913439,
+      "ghi": 36.98096257491344,
+      "dhi": 30,
+      "poa_global": 33.67454357687002
+    },
+    {
+      "name": "vertical",
+      "tilt": 90,
+      "panel_azimuth": 180,
+      "zenith": 45,
+      "solar_azimuth": 150,
+      "dni": 600,
+      "direct_horizontal": 424.26406871192853,
+      "ghi": 524.2640687119285,
+      "dhi": 100,
+      "poa_global": 469.8498682886695
+    }
+  ]
+}
