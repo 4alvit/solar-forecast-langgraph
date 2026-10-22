@@ -183,10 +183,43 @@ See [site_config.example.py](site_config.example.py) for full example.
 
 | Method | Description | Use Case |
 |--------|-------------|----------|
-| `physical` | Clear-sky model + cloud adjustment | No historical data |
+| `physical` | Isotropic transposition of weather-adjusted radiation | No historical data |
 | `statistical` | ML model on historical data | Sufficient history (30+ days) |
 | `ensemble` | Weighted: 60% physical + 40% statistical | Default; comparative accuracy is not yet established |
 | `llm_enhanced` | Optional LLM analysis of weather patterns | Requires API credentials; field accuracy is not yet established |
+
+The physical fallback takes the three horizontal components from
+[Open-Meteo](https://open-meteo.com/en/docs): global (`shortwave_radiation`),
+direct (`direct_radiation`) and diffuse (`diffuse_radiation`), all in W/m².
+Direct horizontal radiation differs from direct normal irradiance (DNI).
+For sun above the horizon, the model projects the direct component onto the
+panel and adds isotropic sky diffuse and ground reflection (albedo 0.2):
+
+```text
+POA = direct_horizontal × max(0, cos(incidence)) / cos(zenith)
+    + diffuse_horizontal × (1 + cos(tilt)) / 2
+    + global_horizontal × 0.2 × (1 - cos(tilt)) / 2
+```
+
+Thus a horizontal panel preserves global irradiance when direct + diffuse =
+global, and a panel facing away from the sun still receives diffuse radiation.
+The previous calculation incorrectly used the beam projection ratio to remove
+diffuse light. The replacement follows the
+[isotropic transposition model](https://pvlib-python.readthedocs.io/en/v0.13.1/reference/generated/pvlib.irradiance.get_total_irradiance.html),
+not an anisotropic Hay-Davies approximation. Eight offline reference cases in
+`tests/fixtures/isotropic-pvlib-0.13.1.json` were calculated using pvlib 0.13.1
+`get_total_irradiance(..., albedo=0.2, model="isotropic")`; pvlib is not a runtime
+dependency. For reproduction, convert each fixture's horizontal direct input
+to DNI with `direct_horizontal / cos(radians(zenith))`.
+
+New Python callers should pass `direct_horizontal=`. The historical `dni=`
+argument (or third positional argument) still means **horizontal** direct
+radiation; passing both names raises `TypeError`. The statistical feature named
+`dni` retains the same historical meaning to preserve fitted model compatibility.
+No extra cloud derating is applied. The solar position remains approximate;
+hourly weather averages are treated at the forecast timestamp. At/below the
+horizon output is zero. Near-horizon direct projection is sensitive to input
+consistency; these numerical checks do not establish real-site forecast accuracy.
 
 ---
 

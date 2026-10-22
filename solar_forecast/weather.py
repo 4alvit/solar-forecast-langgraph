@@ -29,7 +29,7 @@ class WeatherHourly(BaseModel):
     cloud_cover_mid: float = Field(..., description="Mid cloud cover (%)")
     cloud_cover_high: float = Field(..., description="High cloud cover (%)")
     shortwave_radiation: float = Field(..., description="Global horizontal irradiance (W/m²)")
-    direct_radiation: float = Field(..., description="Direct normal irradiance (W/m²)")
+    direct_radiation: float = Field(..., description="Direct horizontal irradiance (W/m²)")
     diffuse_radiation: float = Field(..., description="Diffuse horizontal irradiance (W/m²)")
     wind_speed_10m: float = Field(..., description="Wind speed at 10m (m/s)")
     wind_direction_10m: float = Field(..., description="Wind direction at 10m (°)")

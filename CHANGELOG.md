@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.1.9] - Unreleased
+
+### Fixed
+
+- Preserve sky-diffuse irradiance when projecting horizontal weather radiation
+  onto solar panels. Horizontal panels now retain the full global irradiance,
+  and tilted panels use standard isotropic sky and ground view factors.
+- Clarify that Open-Meteo `direct_radiation` is horizontal direct radiation;
+  retain the historical `dni` argument and trained feature name for compatibility.
+  Cloud attenuation is still applied only by the weather provider.
+
+### Upgrade
+
+Eight synthetic reference cases match pvlib 0.13.1 isotropic transposition,
+including diffuse-only, back-facing, vertical and near-horizon panels. Tests
+also cover the weather adapter through every unfitted forecast method. This
+checks the calculation, not forecast accuracy at a real installation. No
+configuration or trained feature-schema migration is required. Keep the prior
+accepted package for rollback; beta publication does not deploy services or
+replace the stable PyPI package.
+
+### Security
+
+Update the locked certifi trust bundle to 2026.10.19 to resolve the critical
+advisory reported by the required dependency scan. Existing TLS, dependency
+checks and source-bound release verification remain enabled. Radiation tests
+use synthetic local data and do not access a live site or credentials.
+
 ## [0.1.8] - 2026-10-18
 
 ### Changed

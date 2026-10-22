@@ -76,7 +76,7 @@ class SolarPosition:
 
 
 class PhysicalModel:
-    """Physical solar generation model (clear-sky + cloud adjustment)."""
+    """Transpose weather-adjusted irradiance and estimate solar generation."""
 
     def __init__(self, panel: PanelConfig) -> None:
         self.panel = panel
@@ -129,10 +129,30 @@ class PhysicalModel:
         return SolarPosition(zenith=zenith, azimuth=azimuth, elevation=elevation, air_mass=air_mass)
 
     def calculate_poa_irradiance(
-        self, solar_pos: SolarPosition, ghi: float, dni: float, dhi: float
+        self,
+        solar_pos: SolarPosition,
+        ghi: float,
+        dni: float | None = None,
+        dhi: float = 0.0,
+        *,
+        direct_horizontal: float | None = None,
     ) -> float:
-        """Calculate plane-of-array irradiance using Hay-Davies model."""
-        if solar_pos.elevation <= 0:
+        """Transpose horizontal radiation using the isotropic sky model.
+
+        All irradiances are W/m². Open-Meteo ``direct_radiation`` is the
+        horizontal beam component, not direct normal irradiance (DNI).
+        ``dni`` retains that historical horizontal meaning for existing
+        positional/keyword callers; new callers use ``direct_horizontal``.
+        Specify exactly one of those two names.
+        """
+        if direct_horizontal is None:
+            if dni is None:
+                raise TypeError("direct_horizontal is required")
+            direct_horizontal = dni
+        elif dni is not None:
+            raise TypeError("Specify direct_horizontal or legacy dni, not both")
+
+        if solar_pos.elevation <= 0 or solar_pos.zenith >= 90:
             return 0.0
 
         # Angle of incidence
@@ -145,15 +165,16 @@ class PhysicalModel:
         ) * np.cos(azimuth_diff)
         cos_aoi = max(0, cos_aoi)
 
-        # Beam component
-        if dni > 0 and np.cos(zenith_rad) > 0:
-            beam = dni * cos_aoi / np.cos(zenith_rad)
+        # Project the horizontal beam onto the panel. For a horizontal panel
+        # this ratio is one; consistent inputs approach zero at the horizon.
+        if direct_horizontal > 0 and np.cos(zenith_rad) > 0:
+            beam = direct_horizontal * cos_aoi / np.cos(zenith_rad)
         else:
             beam = 0
 
-        # Diffuse component (Hay-Davies)
-        rb = beam / dni if dni > 0 else 0
-        diffuse_sky = dhi * (1 - rb) * (1 + np.cos(tilt_rad)) / 2
+        # Isotropic sky and ground view factors. The beam projection ratio
+        # is not a sky anisotropy index and must not remove diffuse radiation.
+        diffuse_sky = dhi * (1 + np.cos(tilt_rad)) / 2
         diffuse_ground = ghi * 0.2 * (1 - np.cos(tilt_rad)) / 2  # albedo=0.2
 
         poa = beam + diffuse_sky + diffuse_ground
@@ -231,6 +252,8 @@ class StatisticalModel:
                 "cloud_cover_mid": h.cloud_cover_mid,
                 "cloud_cover_high": h.cloud_cover_high,
                 "ghi": h.shortwave_radiation,
+                # Keep the fitted-model feature schema: historical name,
+                # horizontal direct radiation (not normal irradiance).
                 "dni": h.direct_radiation,
                 "dhi": h.diffuse_radiation,
                 "wind_speed": h.wind_speed_10m,
@@ -327,7 +350,7 @@ class ForecastModel:
 
         for i, h in enumerate(weather.hourly):
             # Physical model, summed over all (selected) arrays.
-            # OpenMeteo GHI/DNI/DHI already include cloud effects — applying
+            # OpenMeteo horizontal radiation already includes cloud effects — applying
             # apply_cloud_adjustment on top double-derated by up to 4x.
             physical_power = 0.0
             for phys in self.physicals:
@@ -335,7 +358,10 @@ class ForecastModel:
                     h.time, self.site_config.latitude, self.site_config.longitude
                 )
                 poa = phys.calculate_poa_irradiance(
-                    solar_pos, h.shortwave_radiation, h.direct_radiation, h.diffuse_radiation
+                    solar_pos,
+                    ghi=h.shortwave_radiation,
+                    direct_horizontal=h.direct_radiation,
+                    dhi=h.diffuse_radiation,
                 )
                 physical_power += phys.predict_clear_sky(solar_pos, poa)
 
