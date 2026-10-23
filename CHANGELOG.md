@@ -23,6 +23,10 @@ replace the stable PyPI package.
 
 ### Security
 
+Update the bundled uv installer to 0.13.4, removing the distrusted emSign
+ECC Root CA - G3 certificate from its embedded trust store. Rebuild container
+images to receive the corrected installer; application dependency locks are unchanged.
+
 Update the locked certifi trust bundle to 2026.10.19 to resolve the critical
 advisory reported by the required dependency scan. Existing TLS, dependency
 checks and source-bound release verification remain enabled. Radiation tests
