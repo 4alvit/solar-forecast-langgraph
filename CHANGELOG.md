@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.10] - Development line
+
+### Changed
+
+- Update the pinned package-build environment from setuptools 80.9.0 to 84.1.0 while keeping wheel 0.45.1.
+- Preserve synchronized source/package versions and the required build, dependency and security checks.
+
+### Upgrade
+
+Forecast behavior and configuration are unchanged. Install the newly built package through the documented process and preserve site configuration, data and the previous accepted package or image for rollback. This release does not deploy to a live site.
+
+### Security
+
+No new application security fix is claimed. Required dependency checks and source-bound RC qualification remain enabled; deployment acceptance is separate.
+
 ## [0.1.9] - Unreleased
 
 ### Fixed
