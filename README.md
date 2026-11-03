@@ -68,21 +68,21 @@ graph TD
 
 ### From the stable release
 
-As of 2 November 2026, [PyPI](https://pypi.org/project/solar-forecast-langgraph/0.1.10/)
-and [GitHub Releases](https://github.com/4alvit/solar-forecast-langgraph/releases/tag/v0.1.10)
-both provide `0.1.10`. The [verified publication](https://github.com/4alvit/solar-forecast-langgraph/actions/runs/41431016677)
+As of 3 November 2026, [PyPI](https://pypi.org/project/solar-forecast-langgraph/0.1.11/)
+and [GitHub Releases](https://github.com/4alvit/solar-forecast-langgraph/releases/tag/v0.1.11)
+both provide `0.1.11`. The [verified publication](https://github.com/4alvit/solar-forecast-langgraph/actions/runs/41649277514)
 uploaded the existing approved wheel and sdist without rebuilding them.
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
-python -m pip install solar-forecast-langgraph==0.1.10
+python -m pip install solar-forecast-langgraph==0.1.11
 ```
 
 The same wheel is also available directly from GitHub:
 
 ```bash
-python -m pip install "https://github.com/4alvit/solar-forecast-langgraph/releases/download/v0.1.10/solar_forecast_langgraph-0.1.10-py3-none-any.whl"
+python -m pip install "https://github.com/4alvit/solar-forecast-langgraph/releases/download/v0.1.11/solar_forecast_langgraph-0.1.11-py3-none-any.whl"
 ```
 
 Select an explicit stable version and verify its `SHA256SUMS` and

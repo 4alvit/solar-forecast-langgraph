@@ -1,18 +1,18 @@
 # Distribution channels
 
-As of 2 November 2026, GitHub stable `v0.1.10` and
-[PyPI `0.1.10`](https://pypi.org/project/solar-forecast-langgraph/0.1.10/) are aligned.
-[Publication run 41431016677](https://github.com/4alvit/solar-forecast-langgraph/actions/runs/41431016677)
+As of 3 November 2026, GitHub stable `v0.1.11` and
+[PyPI `0.1.11`](https://pypi.org/project/solar-forecast-langgraph/0.1.11/) are aligned.
+[Publication run 41649277514](https://github.com/4alvit/solar-forecast-langgraph/actions/runs/41649277514)
 uploaded the existing wheel and sdist after validating the original
-`v0.1.10-rc.1` evidence at source commit
-`0c542a54d78ec4a9210161a103c211f2d52fe0d8`; it did not rebuild either package.
+`v0.1.11-rc.1` evidence at source commit
+`c12003085c9ad10e4d5b637ebe72e2826c7b833d`; it did not rebuild either package.
 Both files were downloaded from PyPI and checked against the verified
-GitHub release bytes and [PyPI metadata](https://pypi.org/pypi/solar-forecast-langgraph/0.1.10/json):
+GitHub release bytes and [PyPI metadata](https://pypi.org/pypi/solar-forecast-langgraph/0.1.11/json):
 
-- `solar_forecast_langgraph-0.1.10-py3-none-any.whl`: 37,101 bytes,
-  SHA256 `f198ca06bd979dfc62d6acda562dd89a949888b3a443ef5738c7471f0588511e`.
-- `solar_forecast_langgraph-0.1.10.tar.gz`: 71,605 bytes,
-  SHA256 `9820b3f5cd758e779d04e82129b72dc81f52afae939deaab9a6697523de48b9e`.
+- `solar_forecast_langgraph-0.1.11-py3-none-any.whl`: 37,116 bytes,
+  SHA256 `ee54972d72ea5e37d3d3715e925ebd13267302d237f2857927f7642d820882ec`.
+- `solar_forecast_langgraph-0.1.11.tar.gz`: 71,598 bytes,
+  SHA256 `2f37395ed7b101a1ddfc53f7482debfbb10beff1a3b7502858d817d5e7a7dd94`.
 
 GitHub also contains the source archive and multi-architecture OCI artifact.
 PyPI and GHCR retain separate publication steps; a GitHub tag alone does not
@@ -21,7 +21,7 @@ prove that either registry contains the same version.
 ## Install the current stable package
 
 ```bash
-python -m pip install solar-forecast-langgraph==0.1.10
+python -m pip install solar-forecast-langgraph==0.1.11
 ```
 
 The [README](../README.md#installation) also provides the identical GitHub wheel
@@ -32,12 +32,12 @@ requires the reviewed release bytes.
 ## Verified container
 
 The same stable release's OCI archive is published as
-`ghcr.io/4alvit/solar-forecast-langgraph:0.1.10` for Linux AMD64 and ARM64.
+`ghcr.io/4alvit/solar-forecast-langgraph:0.1.11` for Linux AMD64 and ARM64.
 Publication preserved the approved manifest digests and did not rebuild images
 or change the floating `latest` tag. Pin the manifest index for installation:
 
 ```bash
-docker pull ghcr.io/4alvit/solar-forecast-langgraph@sha256:7a6273f87e27ce1264d42a3d08ad04e3c380a603f695440cac37840268439665
+docker pull ghcr.io/4alvit/solar-forecast-langgraph@sha256:2b1767319881bc10c5bf861851a0e8f9dc0bd9fa360f43d426469d128a847e6c
 ```
 
 This records distribution availability; it does not assert deployment or field
@@ -48,7 +48,7 @@ forecast accuracy.
 From a reviewed checkout, first run the read-only verifier:
 
 ```bash
-python3 scripts/publish_verified.py pypi --tag v0.1.10
+python3 scripts/publish_verified.py pypi --tag v0.1.11
 ```
 
 It requires a published stable release, checks the original RC's source policy,
@@ -59,7 +59,7 @@ qualified release. Do not rebuild an existing version or bypass verification.
 The existing PyPI Trusted Publisher is bound to this repository's `ci.yml`.
 For a future promotion, choose an existing stable GitHub release whose version
 is not yet published on PyPI. Set `STABLE_TAG` to that exact `vX.Y.Z` tag; do not
-republish `v0.1.10`. From the protected `main` branch, a maintainer can publish the
+republish `v0.1.11`. From the protected `main` branch, a maintainer can publish the
 verified release without a long-lived PyPI token:
 
 ```bash
