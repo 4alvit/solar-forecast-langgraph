@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.11] - Development line
+
+### Security
+
+Require websockets 17.4 or newer and update the application lock from 15.0.1 to 17.4, addressing fragmented-message buffering in [GHSA-6m5v-9gmr-5665](https://github.com/python-websockets/websockets/security/advisories/GHSA-6m5v-9gmr-5665). The explicit dependency floor covers both published-package installation and locked environments. LangGraph SDK and LangSmith versions remain unchanged; no optional OpenAI realtime transport is enabled.
+
+### Upgrade
+
+Install the rebuilt package or image through the documented process. Forecast behavior and configuration are unchanged. Preserve site configuration, data and the previous accepted artifact for rollback. Publication does not deploy to a live site or establish forecast accuracy there.
+
 ## [0.1.10] - Development line
 
 ### Changed

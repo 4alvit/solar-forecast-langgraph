@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "solar-forecast-langgraph"
-version = "0.1.10"
+version = "0.1.11"
 description = "LangGraph workflow for solar forecasting with OpenMeteo, historical data, and inverter-control integration"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -21,6 +21,7 @@ classifiers = [
 dependencies = [
     "cryptography==50.0.2; sys_platform != 'darwin' or platform_machine != 'x86_64'",
     "langgraph>=0.2.0",
+    "websockets>=17.4",
     "langchain-core>=0.3.0",
     "langchain-openai>=0.2.0",
     "requests>=2.31",
