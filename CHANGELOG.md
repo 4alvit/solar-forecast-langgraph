@@ -24,6 +24,13 @@ Ledger recording is opt-in and does not change ordinary forecasting or inverter
 delivery. Actual observations require an explicit quality-checked import. This
 release does not establish field accuracy or deploy to a live site.
 
+### Security
+
+Keep the optional ledger and imported observations in private local storage;
+they can contain installation identifiers and measured generation data. No
+new dependency security fix is claimed. The websockets 17.4 minimum, dependency
+checks and source-bound RC qualification remain required.
+
 ## [0.1.11] - Development line
 
 ### Security
