@@ -48,6 +48,7 @@ async def main_async(
     lookback_days: int,
     output_path: str | None,
     output_format: str,
+    evaluation_ledger: str | None = None,
 ):
     """Async main function."""
     from solar_forecast.workflow import run_forecast
@@ -65,6 +66,7 @@ async def main_async(
         panel_id=panel_id,
         forecast_horizon_hours=horizon_hours,
         lookback_days=lookback_days,
+        evaluation_ledger=evaluation_ledger,
     )
 
     if state.errors:
@@ -171,6 +173,10 @@ def main():
         help="Output format (default: json)",
     )
     parser.add_argument(
+        "--evaluation-ledger",
+        help="Append future base/final predictions to a local SQLite evaluation ledger",
+    )
+    parser.add_argument(
         "--version",
         action="version",
         version=f"solar-forecast-langgraph {__version__}",
@@ -192,6 +198,7 @@ def main():
             lookback_days=args.lookback,
             output_path=args.output,
             output_format=args.format,
+            evaluation_ledger=args.evaluation_ledger,
         )
     )
 

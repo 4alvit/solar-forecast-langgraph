@@ -53,6 +53,8 @@ class WorkflowState(BaseModel):
     panel_id: str | None = None
     forecast_horizon_hours: int = 48
     lookback_days: int = 30
+    # Optional local evidence store; no change to ordinary operational runs.
+    evaluation_ledger: str | None = None
 
     # Intermediate results
     weather_forecast: WeatherForecast | None = None
@@ -472,6 +474,35 @@ async def finalize_forecast_node(state: WorkflowState) -> WorkflowState:
         state.errors.append("No forecast generated")
     else:
         state.completed_steps.append("finalize")
+        if state.evaluation_ledger and state.base_forecast is not None:
+            from solar_forecast.evaluation import record_operational_forecasts
+
+            try:
+                history = (
+                    state.historical_df.to_json(orient="split", date_format="iso")
+                    if state.historical_df is not None
+                    else None
+                )
+                result = await asyncio.to_thread(
+                    record_operational_forecasts,
+                    state.evaluation_ledger,
+                    base=state.base_forecast.model_dump(mode="json"),
+                    final=state.final_forecast.model_dump(mode="json"),
+                    configuration=state.site_config.model_dump(mode="json"),
+                    inputs={
+                        "weather": (
+                            state.weather_forecast.model_dump(mode="json")
+                            if state.weather_forecast
+                            else None
+                        ),
+                        "history": history,
+                    },
+                )
+                state.completed_steps.append("record_evaluation")
+                if not result["inserted"]:
+                    state.warnings.append("Forecast ledger: no future full hours to record")
+            except Exception as exc:
+                state.warnings.append(f"Forecast ledger write failed: {exc}")
     return state
 
 
@@ -524,6 +555,7 @@ async def run_forecast(
     panel_id: str | None = None,
     forecast_horizon_hours: int = 48,
     lookback_days: int = 30,
+    evaluation_ledger: str | None = None,
 ) -> WorkflowState:
     """Run the complete forecasting workflow."""
     workflow = build_forecast_workflow()
@@ -534,6 +566,7 @@ async def run_forecast(
         panel_id=panel_id,
         forecast_horizon_hours=forecast_horizon_hours,
         lookback_days=lookback_days,
+        evaluation_ledger=evaluation_ledger,
     )
 
     result = await app.ainvoke(initial_state)
@@ -545,6 +578,7 @@ async def run_forecast_streaming(
     panel_id: str | None = None,
     forecast_horizon_hours: int = 48,
     lookback_days: int = 30,
+    evaluation_ledger: str | None = None,
 ):
     """Run workflow with streaming updates."""
     workflow = build_forecast_workflow()
@@ -555,6 +589,7 @@ async def run_forecast_streaming(
         panel_id=panel_id,
         forecast_horizon_hours=forecast_horizon_hours,
         lookback_days=lookback_days,
+        evaluation_ledger=evaluation_ledger,
     )
 
     async for step in app.astream(initial_state):

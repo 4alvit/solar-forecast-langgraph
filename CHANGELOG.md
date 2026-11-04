@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.1.12] - Development line
+
+### Added
+
+- Record prospective base/final forecasts in an optional local, append-only ledger.
+- Import measured hourly observations and compare fixed forecast variants offline
+  on common chronological holdouts, with hourly/daily errors, coverage and a
+  causal persistence baseline. A labeled synthetic demo exercises the workflow.
+
+### Fixed
+
+- Reject foreign SQLite databases, including databases containing only views,
+  without changing their contents. Keep exact retries idempotent and conflicting
+  imports atomic; reject unrepresentable numeric errors.
+- Preserve historical records from multiple panels sharing a timestamp when
+  recording forecast inputs.
+- Release failed download buffers before retrying release verification.
+
+### Upgrade
+
+Ledger recording is opt-in and does not change ordinary forecasting or inverter
+delivery. Actual observations require an explicit quality-checked import. This
+release does not establish field accuracy or deploy to a live site.
+
 ## [0.1.11] - Development line
 
 ### Security
