@@ -52,6 +52,7 @@ dev = [
 
 [project.scripts]
 solar-forecast = "solar_forecast.main:main"
+solar-forecast-evaluate = "solar_forecast.evaluation_cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]

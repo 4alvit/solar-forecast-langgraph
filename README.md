@@ -16,7 +16,7 @@ LangGraph workflow for solar forecasting with:
 - **Panel configuration schema** — Azimuth, tilt, capacity, losses
 - **Forecast model** — Physical (clear-sky + clouds) + Statistical (ML) + LLM reasoning
 - **Inverter-control integration** — Pre-charge battery before cloudy periods
-- **Forecast validation** — Evaluation requirements and current limitations ([guide](docs/forecast-validation.md))
+- **Forecast validation** — Opt-in forecast ledger, offline comparisons and a synthetic runnable demo ([guide](docs/forecast-validation.md))
 
 ---
 
@@ -43,7 +43,7 @@ graph TD
     G --> H[Inverter-Control Hook<br/>Pre-charge decision]
     H --> I[Final Forecast Output]
     
-    I -.-> J[Planned: accuracy tracking]
+    I -.-> J[Opt-in forecast ledger and offline evaluation]
     J -.-> K[Planned: retraining scheduler]
     
     subgraph "Data Sources"
