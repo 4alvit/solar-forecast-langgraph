@@ -479,7 +479,7 @@ async def finalize_forecast_node(state: WorkflowState) -> WorkflowState:
 
             try:
                 history = (
-                    state.historical_df.to_json(date_format="iso")
+                    state.historical_df.to_json(orient="split", date_format="iso")
                     if state.historical_df is not None
                     else None
                 )

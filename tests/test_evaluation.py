@@ -511,8 +511,12 @@ raise SystemExit(main(['demo','--directory',sys.argv[1]]))
 
 
 @pytest.mark.asyncio
-async def test_workflow_opt_in_records_without_changing_final_forecast(tmp_path, monkeypatch):
+@pytest.mark.parametrize("duplicate_history", [False, True])
+async def test_workflow_opt_in_records_without_changing_final_forecast(
+    tmp_path, monkeypatch, duplicate_history
+):
     from solar_forecast.config import DEFAULT_SITE
+    from solar_forecast.history import GenerationRecord, HistoricalData
     from solar_forecast.model import ForecastMethod, ForecastPoint, GenerationForecast
     from solar_forecast.workflow import WorkflowState, finalize_forecast_node
 
@@ -534,6 +538,31 @@ async def test_workflow_opt_in_records_without_changing_final_forecast(tmp_path,
         ],
     )
     state = WorkflowState(site_config=DEFAULT_SITE, base_forecast=prediction)
+    historical_time = target - timedelta(days=1)
+    if duplicate_history:
+        state.historical_df = HistoricalData(
+            site_id="test",
+            panel_id=None,
+            start_date=historical_time,
+            end_date=historical_time,
+            records=[
+                GenerationRecord(
+                    timestamp=historical_time, site_id="test", panel_id=panel, energy_wh=energy
+                )
+                for panel, energy in (("east", 10), ("west", 20))
+            ],
+        ).to_dataframe()
+        assert state.historical_df.index.has_duplicates
+
+    observed_inputs = {}
+
+    def record_with_observed_inputs(*args, **kwargs):
+        observed_inputs.update(kwargs["inputs"])
+        return record_operational_forecasts(*args, **kwargs)
+
+    monkeypatch.setattr(
+        "solar_forecast.evaluation.record_operational_forecasts", record_with_observed_inputs
+    )
     await finalize_forecast_node(state)
     assert not list(tmp_path.iterdir())
     state.evaluation_ledger = str(tmp_path / "ledger.sqlite")
@@ -542,6 +571,17 @@ async def test_workflow_opt_in_records_without_changing_final_forecast(tmp_path,
     assert "record_evaluation" in state.completed_steps
     with ForecastLedger(state.evaluation_ledger, readonly=True) as store:
         assert len(store.snapshot(datetime.now(UTC))[0]) == 2
+    if duplicate_history:
+        history = json.loads(observed_inputs["history"])
+        assert history["index"] == [historical_time.isoformat().replace("+00:00", ".000Z")] * 2
+        panel_column = history["columns"].index("panel_id")
+        energy_column = history["columns"].index("energy_wh")
+        assert [(row[panel_column], row[energy_column]) for row in history["data"]] == [
+            ("east", 10),
+            ("west", 20),
+        ]
+    else:
+        assert observed_inputs["history"] is None
 
     def disk_failure(*args, **kwargs):
         raise OSError("disk unavailable")
