@@ -186,21 +186,52 @@ def test_sql_guard_and_checksum(ledger):
 
 
 @pytest.mark.parametrize("user_version", [0, 1, 12])
-def test_preserve_foreign_database_and_missing_readonly_path(tmp_path, user_version):
+@pytest.mark.parametrize(
+    "definition",
+    [
+        "CREATE TABLE important (value TEXT)",
+        "CREATE VIEW important_view AS SELECT 42 AS answer",
+        "CREATE VIEW sqliteXimportant_view AS SELECT 42 AS answer",
+    ],
+)
+@pytest.mark.parametrize("readonly", [False, True])
+def test_preserve_foreign_database_and_missing_readonly_path(
+    tmp_path, user_version, definition, readonly
+):
     path = tmp_path / "foreign.sqlite"
     with closing(sqlite3.connect(path)) as db:
-        db.execute("CREATE TABLE important (value TEXT)")
+        db.execute(definition)
         db.execute(f"PRAGMA user_version = {user_version}")
         db.commit()
     before = path.read_bytes()
     with pytest.raises(ValueError, match="foreign"):
-        ForecastLedger(path)
-    with pytest.raises(ValueError, match="foreign"):
-        ForecastLedger(path, readonly=True)
+        ForecastLedger(path, readonly=readonly)
     assert path.read_bytes() == before
     with pytest.raises(sqlite3.OperationalError):
         ForecastLedger(tmp_path / "absent.sqlite", readonly=True)
     assert not (tmp_path / "absent.sqlite").exists()
+
+
+def test_initialize_existing_empty_database(tmp_path):
+    path = tmp_path / "empty.sqlite"
+    with closing(sqlite3.connect(path)) as db:
+        db.execute("VACUUM")
+    with ForecastLedger(path) as store:
+        assert store.append("actuals", [actual()], now=NOW)["inserted"] == 1
+    with ForecastLedger(path, readonly=True) as store:
+        assert len(store.snapshot(NOW)[1]) == 1
+
+
+@pytest.mark.parametrize("readonly", [False, True])
+def test_reject_foreign_objects_added_to_ledger(tmp_path, readonly):
+    path = tmp_path / "ledger.sqlite"
+    with ForecastLedger(path) as store:
+        store.db.execute("CREATE VIEW important_view AS SELECT 42 AS answer")
+        store.db.commit()
+    before = path.read_bytes()
+    with pytest.raises(ValueError, match="foreign"):
+        ForecastLedger(path, readonly=readonly)
+    assert path.read_bytes() == before
 
 
 def test_missing_append_only_guards_are_rejected(tmp_path):

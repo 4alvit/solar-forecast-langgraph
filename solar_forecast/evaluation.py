@@ -234,13 +234,11 @@ class ForecastLedger:
     def _initialize(self, readonly: bool) -> None:
         version = self.db.execute("PRAGMA user_version").fetchone()[0]
         application = self.db.execute("PRAGMA application_id").fetchone()[0]
-        tables = {
-            row[0]
-            for row in self.db.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
-            )
-        }
-        if not readonly and not tables and version == 0 and application == 0:
+        objects = set(
+            self.db.execute("SELECT type, name FROM sqlite_schema WHERE name NOT GLOB 'sqlite_*'")
+        )
+        tables = {name for kind, name in objects if kind == "table"}
+        if not readonly and not objects and version == 0 and application == 0:
             self.db.execute("BEGIN IMMEDIATE")
             for table in ("forecasts", "actuals"):
                 self.db.execute(
@@ -262,6 +260,7 @@ class ForecastLedger:
             application != APPLICATION_ID
             or version != SCHEMA_VERSION
             or tables != {"forecasts", "actuals"}
+            or any(kind not in {"table", "trigger"} for kind, _ in objects)
         ):
             raise ValueError("foreign database or unsupported ledger schema")
         expected_columns = [
@@ -276,9 +275,7 @@ class ForecastLedger:
             ]
             if columns != expected_columns:
                 raise ValueError("unsupported ledger table schema")
-        triggers = {
-            row[0] for row in self.db.execute("SELECT name FROM sqlite_master WHERE type='trigger'")
-        }
+        triggers = {name for kind, name in objects if kind == "trigger"}
         if triggers != {f"{table}_no_{op}" for table in tables for op in ("update", "delete")}:
             raise ValueError("ledger append-only guards are missing or altered")
 
