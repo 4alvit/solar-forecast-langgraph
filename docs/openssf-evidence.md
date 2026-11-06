@@ -21,7 +21,7 @@ The project is developed publicly in [Git](https://github.com/4alvit/solar-forec
 - [Test suite](../tests) and [CI workflows](../.github/workflows)
 - [Local CI entry point](../scripts/ci.sh)
 - [CodeQL analysis](../.github/workflows/codeql.yml)
-- [Dependency update configuration](../.github/dependabot.yml)
+- [Dependency update configuration](../renovate.json)
 
 The gate runs formatting, lint, types and pytest with coverage using the locked dependencies. Tests cover history providers, weather input, model batching, async training, MQTT delivery and CLI configuration. Use fixtures and a disposable broker; forecasts must not be treated as a hardware safety control.
 
