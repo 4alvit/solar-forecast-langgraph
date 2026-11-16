@@ -267,7 +267,7 @@ class StatisticalModel:
         # Align weather and generation by timestamp
         weather_df = self.prepare_features(weather)
         weather_df["timestamp"] = [h.time for h in weather.hourly]
-        weather_df.set_index("timestamp", inplace=True)
+        weather_df = weather_df.set_index("timestamp")
 
         # Merge with generation
         merged = weather_df.join(generation["energy_wh"], how="inner")

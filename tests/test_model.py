@@ -172,7 +172,7 @@ def test_statistical_model_fit():
         hist_rows.append({"timestamp": h.time, "energy_wh": gen})
 
     hist_df = pd.DataFrame(hist_rows)
-    hist_df.set_index("timestamp", inplace=True)
+    hist_df = hist_df.set_index("timestamp")
 
     stat.fit(weather, hist_df)
     assert stat.is_fitted
@@ -191,7 +191,7 @@ def test_statistical_model_predict():
         hist_rows.append({"timestamp": h.time, "energy_wh": gen})
 
     hist_df = pd.DataFrame(hist_rows)
-    hist_df.set_index("timestamp", inplace=True)
+    hist_df = hist_df.set_index("timestamp")
 
     stat.fit(weather, hist_df)
 
@@ -323,7 +323,7 @@ def test_statistical_model_fit_insufficient_data():
         hist_rows.append({"timestamp": h.time, "energy_wh": gen})
 
     hist_df = pd.DataFrame(hist_rows)
-    hist_df.set_index("timestamp", inplace=True)
+    hist_df = hist_df.set_index("timestamp")
 
     with pytest.raises(ValueError, match="Insufficient training data"):
         stat.fit(weather, hist_df)
@@ -387,7 +387,7 @@ def test_forecast_model_statistical_method():
         hist_rows.append({"timestamp": h.time, "energy_wh": gen})
 
     hist_df = pd.DataFrame(hist_rows)
-    hist_df.set_index("timestamp", inplace=True)
+    hist_df = hist_df.set_index("timestamp")
     model.train(train_weather, hist_df)
 
     # Now forecast with STATISTICAL method
