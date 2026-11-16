@@ -81,6 +81,29 @@ def test_historical_data_to_dataframe():
     assert df.index.tz is not None
 
 
+def test_historical_dataframe_sorts_utc_rows_without_mutating_records():
+    records = create_test_records(3)
+    input_order = list(reversed(records))
+    data = HistoricalData(
+        site_id="test",
+        panel_id="p1",
+        records=input_order,
+        start_date=records[0].timestamp,
+        end_date=records[-1].timestamp,
+    )
+
+    result = data.to_dataframe()
+
+    assert list(result.index) == [record.timestamp for record in records]
+    assert result.index.name == "timestamp"
+    assert result.index.tz is not None
+    assert result.index.is_monotonic_increasing
+    assert "timestamp" not in result.columns
+    assert list(result["energy_wh"]) == [record.energy_wh for record in records]
+    assert data.records == input_order
+    pd.testing.assert_frame_equal(result, data.to_dataframe())
+
+
 def test_historical_data_resample_empty():
     """Test resample with empty data."""
     data = HistoricalData(

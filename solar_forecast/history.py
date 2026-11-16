@@ -49,8 +49,8 @@ class HistoricalData(BaseModel):
 
         df = pd.DataFrame([r.model_dump() for r in self.records])
         df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
-        df.set_index("timestamp", inplace=True)
-        df.sort_index(inplace=True)
+        df = df.set_index("timestamp")
+        df = df.sort_index()
         return df
 
     def resample(self, freq: str) -> HistoricalData:
