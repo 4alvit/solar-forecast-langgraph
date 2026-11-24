@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.1.13] - Unreleased
+
+### Changed
+
+- keep local instruction files out of git.
+- add a navigation index for docs/.
+- isolate every auto-merge base edit (#194).
+- preserve merge identity and withdrawn auto-merge requests (#193).
+- skip heavy qualification for ordinary documentation (#187).
+- Complete dependency update migration to Renovate (#186).
+- recheck automatic publication source (#184).
+- reconcile lost creation responses (#183).
+- Validate complete release notes before reserving package versions (#181).
+
+### Upgrade
+
+Ledger recording is opt-in and does not change ordinary forecasting or inverter
+delivery. Actual observations require an explicit quality-checked import. This
+release does not establish field accuracy or deploy to a live site.
+
+### Security
+
+Keep the optional ledger and imported observations in private local storage;
+they can contain installation identifiers and measured generation data. No
+new dependency security fix is claimed. The websockets 17.4 minimum, dependency
+checks and source-bound RC qualification remain required.
+
 ## [0.1.12] - Development line
 
 ### Added
