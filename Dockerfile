@@ -17,7 +17,7 @@ ENV RUSTUP_HOME=/usr/local/rustup \
     CARGO_HOME=/usr/local/cargo \
     PATH=/usr/local/cargo/bin:$PATH
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
-    | sh -s -- -y --profile minimal --default-toolchain 1.88.0 --no-modify-path \
+    | sh -s -- -y --profile minimal --default-toolchain 1.95.0 --no-modify-path \
     && rustc --version && cargo --version
 
 COPY pyproject.toml uv.lock README.md ./
