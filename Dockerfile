@@ -5,9 +5,20 @@ COPY --from=ghcr.io/astral-sh/uv:0.13.10@sha256:a3ea1357342c1a4bf9a0c53a3deb1b55
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    libc6-dev \
+    build-essential \
+    file \
+    pkg-config \
+    libssl-dev \
+    curl \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
+
+ENV RUSTUP_HOME=/usr/local/rustup \
+    CARGO_HOME=/usr/local/cargo \
+    PATH=/usr/local/cargo/bin:$PATH
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+    | sh -s -- -y --profile minimal --default-toolchain 1.88.0 --no-modify-path \
+    && rustc --version && cargo --version
 
 COPY pyproject.toml uv.lock README.md ./
 COPY solar_forecast ./solar_forecast
